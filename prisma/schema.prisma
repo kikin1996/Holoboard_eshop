@@ -1,0 +1,185 @@
+// ============================================================================
+// HoloBoard – datový model produktu, variant a objednávky
+// ============================================================================
+// Poznámka: schéma je psané v Prisma syntaxi kvůli čitelnosti vztahů (1:N, M:N).
+// Pokud finálně poběžíte na MedusaJS, tento model odpovídá jejich
+// Product / ProductVariant / ProductOption modulům rozšířeným o vlastní pole
+// (packetaBranchId apod.) přes Medusa "module" / metadata JSONB sloupec.
+// Pokud poběžíte na Strapi, jde 1:1 o návrh Content-Types (Product, Order...).
+// ============================================================================
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// -----------------------------------------------------------------------
+// PRODUKT
+// -----------------------------------------------------------------------
+
+model Product {
+  id          String    @id @default(uuid())
+  slug        String    @unique          // "holoboard-original"
+  name        String                     // "HoloBoard Original"
+  description String?
+  status      ProductStatus @default(DRAFT)
+
+  // Základní cena v halířích (Int, ne Float -> žádné zaokrouhlovací chyby)
+  basePriceCents Int
+  currency       String @default("CZK")
+
+  images   ProductImage[]
+  options  ProductOption[]      // "Barva", "Balíček příslušenství"
+  variants ProductVariant[]     // konkrétní prodejné kombinace
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model ProductImage {
+  id        String  @id @default(uuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  url       String
+  altText   String?
+  position  Int     @default(0)
+}
+
+// Typ volby, např. "Barva", "Balíček příslušenství"
+model ProductOption {
+  id        String @id @default(uuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  title     String  // "Barva" | "Balíček příslušenství"
+
+  values ProductOptionValue[]
+}
+
+// Konkrétní hodnota volby, např. "Ocean Blue", "Weekend Kit"
+model ProductOptionValue {
+  id       String @id @default(uuid())
+  optionId String
+  option   ProductOption @relation(fields: [optionId], references: [id])
+  value    String
+
+  variantLinks VariantOptionValue[]
+}
+
+// Konkrétní prodejná kombinace (barva x příslušenství) = jedna SKU
+model ProductVariant {
+  id        String  @id @default(uuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  sku   String @unique          // "HB-ORG-OCEANBLUE-WEEKEND"
+  title String                  // "Ocean Blue / Weekend Kit"
+
+  // Cena může přebít basePriceCents produktu (příplatek za příslušenství)
+  priceCents Int
+  currency   String @default("CZK")
+
+  weightGrams Int      // pro výpočet dopravy / hmotnostní tarify
+  optionValues VariantOptionValue[]
+
+  inventory Inventory?
+  orderItems OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// M:N vazba varianty na konkrétní hodnoty voleb (barva=X AND příslušenství=Y)
+model VariantOptionValue {
+  variantId      String
+  variant        ProductVariant @relation(fields: [variantId], references: [id])
+  optionValueId  String
+  optionValue    ProductOptionValue @relation(fields: [optionValueId], references: [id])
+
+  @@id([variantId, optionValueId])
+}
+
+// Sklad k variantě (oddělené kvůli rezervacím při rozpracované objednávce)
+model Inventory {
+  id                  String  @id @default(uuid())
+  variantId           String  @unique
+  variant             ProductVariant @relation(fields: [variantId], references: [id])
+  quantityAvailable   Int     @default(0)   // fyzicky na skladě
+  quantityReserved    Int     @default(0)   // v nedokončených objednávkách
+  warehouseLocation   String? // "Praha - hlavní sklad"
+  updatedAt           DateTime @updatedAt
+}
+
+// -----------------------------------------------------------------------
+// OBJEDNÁVKA
+// -----------------------------------------------------------------------
+
+model Order {
+  id           String @id @default(uuid())
+  orderNumber  String @unique              // "HB-2026-000123", zobrazuje se zákazníkovi
+  customerEmail String
+  customerName  String?
+
+  status OrderStatus @default(PENDING)
+
+  items OrderItem[]
+
+  totalPriceCents Int
+  currency        String @default("CZK")
+
+  // --- Doprava (Zásilkovna / Packeta) ---
+  shippingMethod    ShippingMethod
+  packetaBranchId   String?   // ID Z-BOXu / pobočky vrácené Packeta Widgetem (point.id)
+  packetaBranchName String?   // Lidsky čitelný název/adresa pobočky (point.name)
+
+  // --- Platba (ComGate) ---
+  paymentProvider     String  @default("comgate")
+  paymentTransactionId String? // ComGate "transId" z /v2.0/create
+  paymentStatus        PaymentStatus @default(WAITING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum OrderStatus {
+  PENDING     // vytvořena, čeká se na platbu
+  PAID        // platba ověřená přes ComGate /v2.0/status
+  FULFILLED   // předáno dopravci (vygenerován štítek Packeta)
+  CANCELLED
+}
+
+enum ShippingMethod {
+  PACKETA_ZBOX       // výdejní box / pobočka
+  PACKETA_HOME       // Packeta Home Delivery
+  COURIER
+}
+
+enum PaymentStatus {
+  WAITING
+  PAID
+  CANCELLED
+  REFUNDED
+}
+
+model OrderItem {
+  id        String @id @default(uuid())
+  orderId   String
+  order     Order  @relation(fields: [orderId], references: [id])
+
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+
+  quantity       Int
+  // Cena v čase objednání - NIKDY nečíst aktuální cenu produktu zpětně,
+  // ceny se v čase mění a historická objednávka musí zůstat neměnná.
+  unitPriceCents Int
+}
