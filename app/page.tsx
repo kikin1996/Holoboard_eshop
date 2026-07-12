@@ -49,7 +49,7 @@ export default function HomePage() {
         </p>
         <Link
           href="/kosik"
-          className="mt-10 inline-block rounded-full bg-ink px-8 py-4 text-sm font-medium text-white transition-transform hover:scale-[1.02]"
+          className="mt-10 inline-block rounded-full bg-accent px-8 py-4 text-sm font-medium text-white transition-all hover:scale-[1.02] hover:bg-accent-dark"
         >
           Přejít do košíku
         </Link>

@@ -12,6 +12,8 @@ import {
 import ProductGallery from '@/components/ProductGallery';
 import SpecGrid from '@/components/SpecGrid';
 import EquipmentList from '@/components/EquipmentList';
+import AddToCart from '@/components/AddToCart';
+import { HOLOBOARD, formatPrice } from '@/lib/catalog';
 
 export const metadata: Metadata = {
   title: 'HoloBoard – 2v1 Paddleboard a Kajak | 8 990 Kč',
@@ -64,9 +66,32 @@ const dimensions = [
   { label: 'Plocha pro sezení (vnitřní část)', value: '500 × 750 mm' },
 ];
 
+// Strukturovaná data pro vyhledávače (Google rich results).
+const productJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Product',
+  name: 'HoloBoard',
+  description:
+    'Stabilní a pohodlné plavidlo, které kombinuje výhody paddleboardu a kajaku. Vhodné pro děti, dospělé i úplné začátečníky.',
+  image: '/gallery/P1574944OB-min.jpg',
+  sku: '23',
+  brand: { '@type': 'Brand', name: 'HoloBoard' },
+  offers: {
+    '@type': 'Offer',
+    price: HOLOBOARD.priceCents / 100,
+    priceCurrency: 'CZK',
+    availability: 'https://schema.org/PreOrder',
+    url: '/holoboard',
+  },
+};
+
 export default function ProductPage() {
   return (
     <main>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+      />
       {/* --- Produktový hero: galerie + nákupní informace --- */}
       <section className="mx-auto max-w-6xl px-6 pb-20 pt-14 md:pb-28 md:pt-20">
         <div className="grid gap-12 md:grid-cols-2 md:gap-16">
@@ -86,7 +111,7 @@ export default function ProductPage() {
             </p>
 
             <p className="mt-8 text-4xl font-semibold tracking-tight text-accent-orange">
-              8 990 Kč
+              {formatPrice(HOLOBOARD.priceCents)}
             </p>
 
             <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-mist px-4 py-2 text-sm text-muted">
@@ -94,19 +119,8 @@ export default function ProductPage() {
               Předprodej · dodací lhůta 6–14 týdnů
             </div>
 
-            <div className="mt-8 flex flex-wrap gap-4">
-              <Link
-                href="/kosik"
-                className="rounded-full bg-ink px-8 py-4 text-sm font-medium text-white transition-transform hover:scale-[1.02]"
-              >
-                Do košíku
-              </Link>
-              <a
-                href="mailto:info@holoboard.cz"
-                className="rounded-full border border-line px-8 py-4 text-sm font-medium text-ink transition-colors hover:bg-mist"
-              >
-                Zeptat se
-              </a>
+            <div className="mt-8">
+              <AddToCart variant={HOLOBOARD} />
             </div>
 
             <dl className="mt-10 divide-y divide-line border-t border-line text-sm">
@@ -151,18 +165,19 @@ export default function ProductPage() {
               </div>
             ))}
 
-            {/* Karta "Pro koho" doplňuje mřížku na 6 polí */}
-            <div className="rounded-3xl bg-ink p-8 text-white shadow-sm">
+            {/* Karta "Pro koho" doplňuje mřížku na 6 polí - jediný větší
+                brandově modrý blok na stránce */}
+            <div className="rounded-3xl bg-accent p-8 text-white shadow-sm">
               <h3 className="text-lg font-semibold">
                 Pro koho je HoloBoard ideální?
               </h3>
               <ul className="mt-4 space-y-3">
                 {audience.map((item) => (
-                  <li key={item} className="flex items-start gap-3 text-sm leading-relaxed text-white/80">
+                  <li key={item} className="flex items-start gap-3 text-sm leading-relaxed text-white/90">
                     <Check
                       size={15}
                       strokeWidth={2.5}
-                      className="mt-0.5 shrink-0 text-accent"
+                      className="mt-0.5 shrink-0 text-white"
                     />
                     {item}
                   </li>
@@ -242,9 +257,9 @@ export default function ProductPage() {
         </p>
         <Link
           href="/kosik"
-          className="mt-10 inline-block rounded-full bg-ink px-8 py-4 text-sm font-medium text-white transition-transform hover:scale-[1.02]"
+          className="mt-10 inline-block rounded-full bg-accent-orange px-8 py-4 text-sm font-medium text-white transition-all hover:scale-[1.02] hover:brightness-95"
         >
-          Objednat za 8 990 Kč
+          Objednat za {formatPrice(HOLOBOARD.priceCents)}
         </Link>
         <p className="mt-6 text-sm text-muted">
           Objednávky vyřizujeme v pořadí jejich přijetí.

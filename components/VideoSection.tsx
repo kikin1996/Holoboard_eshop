@@ -64,6 +64,7 @@ export default function VideoSection() {
                 <iframe
                   src={`https://www.youtube.com/embed/${id}`}
                   title={title}
+                  loading="lazy"
                   className="absolute inset-0 h-full w-full"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen

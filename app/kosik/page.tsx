@@ -1,16 +1,18 @@
+import type { Metadata } from 'next';
 import Cart from '@/components/Cart';
 
-// Ukázková data - v reálném provozu by se položky natáhly z Medusa Cart API
-// podle cart ID uloženého v cookie (viz ARCHITECTURE.md, kap. 1.3).
-const sampleItems = [
-  {
-    variantId: 'holoboard-standard',
-    name: 'HoloBoard — 2v1 Paddleboard a Kajak',
-    unitPriceCents: 899000, // 8 990 Kč
-    quantity: 1,
-  },
-];
+export const metadata: Metadata = {
+  title: 'Košík',
+  description: 'Váš nákupní košík - doprava Zásilkovnou, platba přes ComGate.',
+  robots: { index: false }, // košík do vyhledávačů nepatří
+};
 
-export default function CartPage() {
-  return <Cart initialItems={sampleItems} />;
+interface PageProps {
+  searchParams: { zruseno?: string };
+}
+
+// Obsah košíku žije v CartContextu (localStorage) - stránka jen předá
+// příznak zrušené platby, když se zákazník vrátí z ComGate přes cancelUrl.
+export default function CartPage({ searchParams }: PageProps) {
+  return <Cart paymentCancelled={searchParams.zruseno === '1'} />;
 }

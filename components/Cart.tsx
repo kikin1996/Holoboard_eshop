@@ -3,34 +3,27 @@
 // =============================================================================
 // components/Cart.tsx
 // -----------------------------------------------------------------------------
-// Ukázková komponenta nákupního košíku pro HoloBoard e-shop.
+// Nákupní košík HoloBoard e-shopu.
 //
 // Datový tok (viz ARCHITECTURE.md, kap. 1.4 a 1.5):
-//   1) Položky košíku přichází jako props/state (v reálu z Medusa Cart API).
+//   1) Položky košíku žijí ve sdíleném CartContextu (localStorage persistence);
+//      v reálu by se synchronizovaly s Medusa Cart API.
 //   2) Tlačítko "Vybrat výdejní místo" otevře oficiální Packeta (Zásilkovna)
 //      JS Widget. Widget běží čistě na klientovi, klíč je veřejný
 //      (NEXT_PUBLIC_PACKETA_API_KEY), po výběru se do state uloží jen
 //      ID a název pobočky - žádná platba ani sklad se tu neřeší.
 //   3) Tlačítko "Přejít k platbě" odešle obsah košíku + ID pobočky na
 //      VLASTNÍ Next.js API route (/api/checkout). Ta teprve server-to-server
-//      založí objednávku v Meduse/Strapi a platbu u ComGate. Tajný ComGate
-//      "secret" se v této komponentě vůbec neobjevuje - je jen na serveru.
+//      založí objednávku a platbu u ComGate. Tajný ComGate "secret" se
+//      v této komponentě vůbec neobjevuje - je jen na serveru.
 // =============================================================================
 
 import { useState, useCallback } from 'react';
+import Link from 'next/link';
 import Script from 'next/script';
-
-// -----------------------------------------------------------------------
-// Typy
-// -----------------------------------------------------------------------
-
-interface CartItem {
-  variantId: string;      // odpovídá ProductVariant.id ve schématu
-  name: string;           // "HoloBoard Original - Ocean Blue / Weekend Kit"
-  unitPriceCents: number; // cena v halířích - žádné Float zaokrouhlování
-  quantity: number;
-  imageUrl?: string;
-}
+import { Minus, Plus, Trash2, ShoppingBag, MapPin } from 'lucide-react';
+import { useCart } from '@/components/CartContext';
+import { SHIPPING_CENTS, formatPrice } from '@/lib/catalog';
 
 // Tvar objektu, který vrací Packeta Widget po výběru pobočky/Z-BOXu.
 // (id a name jsou jediná pole, která si ukládáme do objednávky - viz schéma.)
@@ -59,25 +52,12 @@ declare global {
 }
 
 interface CartProps {
-  initialItems: CartItem[];
+  /** true, když se zákazník vrátil z ComGate bez dokončení platby (?zruseno=1). */
+  paymentCancelled?: boolean;
 }
 
-// -----------------------------------------------------------------------
-// Pomocné funkce
-// -----------------------------------------------------------------------
-
-function formatPrice(cents: number, currency = 'CZK'): string {
-  return new Intl.NumberFormat('cs-CZ', { style: 'currency', currency }).format(
-    cents / 100
-  );
-}
-
-// -----------------------------------------------------------------------
-// Komponenta
-// -----------------------------------------------------------------------
-
-export default function Cart({ initialItems }: CartProps) {
-  const [items, setItems] = useState<CartItem[]>(initialItems);
+export default function Cart({ paymentCancelled = false }: CartProps) {
+  const { items, isHydrated, updateQuantity, removeItem } = useCart();
   const [selectedPoint, setSelectedPoint] = useState<PacketaPoint | null>(null);
   const [isWidgetReady, setIsWidgetReady] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -89,16 +69,8 @@ export default function Cart({ initialItems }: CartProps) {
     (sum, item) => sum + item.unitPriceCents * item.quantity,
     0
   );
-  const shippingCents = selectedPoint ? 7900 : 0; // 79 Kč, jen ilustrační sazba
+  const shippingCents = selectedPoint ? SHIPPING_CENTS : 0;
   const totalCents = subtotalCents + shippingCents;
-
-  const updateQuantity = (variantId: string, quantity: number) => {
-    setItems((prev) =>
-      prev
-        .map((item) => (item.variantId === variantId ? { ...item, quantity } : item))
-        .filter((item) => item.quantity > 0)
-    );
-  };
 
   // ---------------------------------------------------------------------
   // Krok 1: výběr výdejního místa přes Packeta Widget
@@ -158,7 +130,7 @@ export default function Cart({ initialItems }: CartProps) {
     try {
       // Voláme VLASTNÍ Next.js API route, ne ComGate přímo. Tělo požadavku
       // obsahuje jen ID varianty a množství (cenu si server vždy přepočítá
-      // sám podle aktuálních cen v Meduse/Strapi - klient cenu neposílá).
+      // sám podle katalogu - klient cenu neposílá).
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -190,7 +162,6 @@ export default function Cart({ initialItems }: CartProps) {
     } catch (error) {
       console.error(error);
       setErrorMessage('Nepodařilo se zahájit platbu, zkuste to prosím znovu.');
-    } finally {
       setIsSubmitting(false);
     }
   }, [items, selectedPoint]);
@@ -209,88 +180,154 @@ export default function Cart({ initialItems }: CartProps) {
         Váš košík
       </h1>
 
-      {/* --- Přehled produktů --- */}
-      <ul className="mt-10 divide-y divide-line">
-        {items.map((item) => (
-          <li key={item.variantId} className="flex items-center justify-between py-6">
-            <div>
-              <p className="font-medium text-ink">{item.name}</p>
-              <p className="mt-1 text-sm text-muted">
-                {formatPrice(item.unitPriceCents)} / ks
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              <input
-                type="number"
-                min={0}
-                value={item.quantity}
-                onChange={(e) =>
-                  updateQuantity(item.variantId, Number(e.target.value))
-                }
-                className="w-16 rounded-full border border-line px-3 py-2 text-center text-sm focus:border-accent focus:outline-none"
-              />
-              <span className="w-28 text-right font-medium text-ink">
-                {formatPrice(item.unitPriceCents * item.quantity)}
-              </span>
-            </div>
-          </li>
-        ))}
-        {items.length === 0 && (
-          <li className="py-6 text-muted">Košík je prázdný.</li>
-        )}
-      </ul>
-
-      {/* --- Kalkulace ceny --- */}
-      <div className="mt-8 space-y-2 rounded-3xl bg-mist p-6 text-sm">
-        <div className="flex justify-between text-muted">
-          <span>Mezisoučet</span>
-          <span className="text-ink">{formatPrice(subtotalCents)}</span>
-        </div>
-        <div className="flex justify-between text-muted">
-          <span>Doprava (Zásilkovna)</span>
-          <span className="text-ink">
-            {selectedPoint ? formatPrice(shippingCents) : '—'}
-          </span>
-        </div>
-        <div className="flex justify-between border-t border-line pt-3 text-base font-semibold text-ink">
-          <span>Celkem</span>
-          <span className="text-accent-orange">{formatPrice(totalCents)}</span>
-        </div>
-      </div>
-
-      {/* --- Výběr dopravy --- */}
-      <div className="mt-6 rounded-3xl border border-line p-6">
-        <button
-          type="button"
-          onClick={handleOpenPacketaWidget}
-          className="rounded-full bg-ink px-6 py-3 text-sm font-medium text-white transition-transform hover:scale-[1.02]"
-        >
-          {selectedPoint ? 'Změnit výdejní místo' : 'Vybrat výdejní místo'}
-        </button>
-
-        {selectedPoint && (
-          <p className="mt-4 text-sm text-muted">
-            Vybraná pobočka: <strong className="text-ink">{selectedPoint.name}</strong>{' '}
-            <span className="text-muted">(ID: {selectedPoint.id})</span>
-          </p>
-        )}
-      </div>
-
-      {errorMessage && (
-        <p className="mt-6 rounded-2xl bg-red-50 p-4 text-sm text-red-700">
-          {errorMessage}
+      {paymentCancelled && (
+        <p className="mt-6 rounded-2xl bg-mist p-4 text-sm text-ink">
+          Platba nebyla dokončena. Položky zůstaly v košíku - můžete to zkusit
+          znovu, nebo nás kontaktovat na{' '}
+          <a href="mailto:info@holoboard.cz" className="font-medium text-accent underline underline-offset-4">
+            info@holoboard.cz
+          </a>
+          .
         </p>
       )}
 
-      {/* --- Přechod k platbě --- */}
-      <button
-        type="button"
-        onClick={handleCheckout}
-        disabled={isSubmitting || items.length === 0}
-        className="mt-6 w-full rounded-full bg-accent px-6 py-4 text-sm font-medium text-white transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {isSubmitting ? 'Zakládám platbu…' : 'Přejít k platbě'}
-      </button>
+      {/* --- Prázdný košík --- */}
+      {isHydrated && items.length === 0 ? (
+        <div className="mt-12 rounded-3xl bg-mist p-12 text-center">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-paper text-accent">
+            <ShoppingBag size={24} strokeWidth={1.75} />
+          </span>
+          <p className="mt-6 text-lg font-medium text-ink">Košík je prázdný</p>
+          <p className="mt-2 text-sm text-muted">
+            Vyberte si HoloBoard a vraťte se k pokladně.
+          </p>
+          <Link
+            href="/holoboard"
+            className="mt-8 inline-block rounded-full bg-accent px-8 py-4 text-sm font-medium text-white transition-all hover:scale-[1.02] hover:bg-accent-dark"
+          >
+            Prohlédnout HoloBoard
+          </Link>
+        </div>
+      ) : (
+        <>
+          {/* --- Přehled produktů --- */}
+          <ul className="mt-10 divide-y divide-line">
+            {items.map((item) => (
+              <li
+                key={item.variantId}
+                className="flex flex-wrap items-center justify-between gap-4 py-6"
+              >
+                <div>
+                  <p className="font-medium text-ink">{item.name}</p>
+                  <p className="mt-1 text-sm text-muted">
+                    {formatPrice(item.unitPriceCents)} / ks
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  {/* Stepper množství */}
+                  <div className="flex items-center rounded-full border border-line">
+                    <button
+                      type="button"
+                      onClick={() => updateQuantity(item.variantId, item.quantity - 1)}
+                      aria-label="Snížit množství"
+                      className="flex h-9 w-9 items-center justify-center rounded-l-full text-ink transition-colors hover:bg-mist"
+                    >
+                      <Minus size={14} />
+                    </button>
+                    <span className="w-8 text-center text-sm font-medium text-ink">
+                      {item.quantity}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => updateQuantity(item.variantId, item.quantity + 1)}
+                      aria-label="Zvýšit množství"
+                      className="flex h-9 w-9 items-center justify-center rounded-r-full text-ink transition-colors hover:bg-mist"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
+
+                  <span className="w-24 text-right font-medium text-ink">
+                    {formatPrice(item.unitPriceCents * item.quantity)}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => removeItem(item.variantId)}
+                    aria-label={`Odebrat ${item.name} z košíku`}
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-mist hover:text-ink"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {/* --- Kalkulace ceny --- */}
+          <div className="mt-8 space-y-2 rounded-3xl bg-mist p-6 text-sm">
+            <div className="flex justify-between text-muted">
+              <span>Mezisoučet</span>
+              <span className="text-ink">{formatPrice(subtotalCents)}</span>
+            </div>
+            <div className="flex justify-between text-muted">
+              <span>Doprava (Zásilkovna)</span>
+              <span className="text-ink">
+                {selectedPoint ? formatPrice(shippingCents) : '—'}
+              </span>
+            </div>
+            <div className="flex justify-between border-t border-line pt-3 text-base font-semibold text-ink">
+              <span>Celkem</span>
+              <span className="text-accent-orange">{formatPrice(totalCents)}</span>
+            </div>
+          </div>
+
+          {/* --- Výběr dopravy --- */}
+          <div className="mt-6 rounded-3xl border border-line p-6">
+            <button
+              type="button"
+              onClick={handleOpenPacketaWidget}
+              className="flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-white transition-all hover:scale-[1.02] hover:bg-accent-dark"
+            >
+              <MapPin size={15} strokeWidth={2} />
+              {selectedPoint ? 'Změnit výdejní místo' : 'Vybrat výdejní místo'}
+            </button>
+
+            {selectedPoint ? (
+              <p className="mt-4 text-sm text-muted">
+                Vybraná pobočka:{' '}
+                <strong className="text-ink">{selectedPoint.name}</strong>{' '}
+                <span className="text-muted">(ID: {selectedPoint.id})</span>
+              </p>
+            ) : (
+              <p className="mt-4 text-sm text-muted">
+                Doručujeme na více než 10 000 výdejních míst a Z-BOXů Zásilkovny
+                po celé ČR.
+              </p>
+            )}
+          </div>
+
+          {errorMessage && (
+            <p className="mt-6 rounded-2xl bg-red-50 p-4 text-sm text-red-700" role="alert">
+              {errorMessage}
+            </p>
+          )}
+
+          {/* --- Přechod k platbě --- */}
+          <button
+            type="button"
+            onClick={handleCheckout}
+            disabled={isSubmitting || items.length === 0}
+            className="mt-6 w-full rounded-full bg-accent-orange px-6 py-4 text-sm font-medium text-white transition-all hover:scale-[1.01] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSubmitting ? 'Zakládám platbu…' : 'Přejít k platbě'}
+          </button>
+
+          <p className="mt-4 text-center text-xs text-muted">
+            Bezpečná platba přes ComGate · kartou i bankovním převodem
+          </p>
+        </>
+      )}
     </div>
   );
 }

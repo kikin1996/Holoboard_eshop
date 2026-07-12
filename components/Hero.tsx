@@ -32,7 +32,7 @@ export default function Hero() {
           <div className="mt-10 flex flex-wrap gap-4">
             <Link
               href="/holoboard"
-              className="rounded-full bg-ink px-8 py-4 text-sm font-medium text-white transition-transform hover:scale-[1.02]"
+              className="rounded-full bg-accent px-8 py-4 text-sm font-medium text-white transition-all hover:scale-[1.02] hover:bg-accent-dark"
             >
               Koupit HoloBoard
             </Link>

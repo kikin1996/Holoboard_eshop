@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getVariant, SHIPPING_CENTS } from '@/lib/catalog';
 
 // =============================================================================
 // POST /api/checkout
@@ -33,17 +34,26 @@ export async function POST(request: NextRequest) {
   }
 
   // ---------------------------------------------------------------------
-  // 1) Zde by v reálném projektu proběhlo:
-  //    - dotaz na Medusa/Strapi admin API pro aktuální ceny variant podle
-  //      body.items[].variantId (NIKDY nedůvěřovat ceně z klienta),
-  //    - vytvoření Order záznamu se statusem PENDING a uložením
-  //      shipping.packetaBranchId / packetaBranchName (viz schema.prisma).
-  //
-  // Pro přehlednost ukázky simulujeme výsledek pevnou částkou a číslem
-  // objednávky - v produkci nahraďte skutečným voláním Medusa/Strapi.
+  // 1) Autoritativní přepočet ceny na serveru - ceny se dohledávají
+  //    v katalogu podle variantId, ceně z klienta se NIKDY nevěří.
+  //    (V reálném projektu by getVariant volal Medusa/Strapi admin API
+  //    a zároveň by se tu založil Order záznam se statusem PENDING.)
   // ---------------------------------------------------------------------
+  let itemsTotalCents = 0;
+  for (const item of body.items) {
+    const variant = getVariant(item.variantId);
+    const quantity = Math.round(item.quantity);
+    if (!variant || !Number.isFinite(quantity) || quantity < 1 || quantity > 99) {
+      return NextResponse.json(
+        { error: `Neplatná položka košíku: ${item.variantId}` },
+        { status: 400 }
+      );
+    }
+    itemsTotalCents += variant.priceCents * quantity;
+  }
+
   const orderNumber = `HB-${Date.now()}`;
-  const totalPriceCents = 2499000 + 7900; // demo: cena + doprava
+  const totalPriceCents = itemsTotalCents + SHIPPING_CENTS;
 
   const merchant = process.env.COMGATE_MERCHANT_ID;
   const secret = process.env.COMGATE_SECRET;

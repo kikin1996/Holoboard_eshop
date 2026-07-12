@@ -10,9 +10,10 @@ const config: Config = {
       colors: {
         ink: '#0A0A0A',
         paper: '#FFFFFF',
-        mist: '#F5F5F4',
-        line: '#E7E5E4',
+        mist: '#EDF5FA',
+        line: '#D9E7F0',
         accent: '#2D9CDA',
+        'accent-dark': '#1E7FB8',
         'accent-orange': '#FF6B0F',
         muted: '#6B7280',
       },

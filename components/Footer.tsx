@@ -14,9 +14,32 @@ export default function Footer() {
             <div>
               <p className="mb-3 font-medium text-ink">Kontakt</p>
               <ul className="space-y-2">
-                <li>info@holoboard.cz</li>
-                <li>777 726 001</li>
-                <li>@holoboard_</li>
+                <li>
+                  <a
+                    href="mailto:info@holoboard.cz"
+                    className="transition-colors hover:text-accent"
+                  >
+                    info@holoboard.cz
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="tel:+420777726001"
+                    className="transition-colors hover:text-accent"
+                  >
+                    777 726 001
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.instagram.com/holoboard_/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="transition-colors hover:text-accent"
+                  >
+                    @holoboard_
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
