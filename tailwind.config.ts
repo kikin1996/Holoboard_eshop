@@ -12,8 +12,8 @@ const config: Config = {
         paper: '#FFFFFF',
         mist: '#F5F5F4',
         line: '#E7E5E4',
-        accent: '#2F6690',
-        'accent-orange': '#BD6132',
+        accent: '#2D9CDA',
+        'accent-orange': '#FF6B0F',
         muted: '#6B7280',
       },
       fontFamily: {

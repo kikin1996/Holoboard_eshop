@@ -19,7 +19,7 @@ export default function Navbar() {
         </Link>
 
         <nav className="hidden items-center gap-8 text-sm text-muted md:flex">
-          <Link href="/#produkt" className="transition-colors hover:text-ink">
+          <Link href="/holoboard" className="transition-colors hover:text-ink">
             Produkt
           </Link>
           <Link href="/#video" className="transition-colors hover:text-ink">

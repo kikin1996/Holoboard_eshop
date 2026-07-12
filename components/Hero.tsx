@@ -31,7 +31,7 @@ export default function Hero() {
           </p>
           <div className="mt-10 flex flex-wrap gap-4">
             <Link
-              href="/kosik"
+              href="/holoboard"
               className="rounded-full bg-ink px-8 py-4 text-sm font-medium text-white transition-transform hover:scale-[1.02]"
             >
               Koupit HoloBoard

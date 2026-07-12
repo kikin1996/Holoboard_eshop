@@ -5,11 +5,11 @@
 - `--color-paper` #FFFFFF   — pozadí
 - `--color-mist`  #F5F5F4   — alternující sekce, karty
 - `--color-line`  #E7E5E4   — jemné linky/oddělovače
-- `--color-accent`#2F6690   — hlavní akcentní barva, tlumená modrá odvozená z brandu holoboard.cz, použitá na eyebrow popisky, odkazy a hlavní CTA
-- `--color-accent-orange` #BD6132 — vedlejší akcentní barva, tlumená terakotová odvozená z brandu holoboard.cz, použitá jen výjimečně (např. cena/total)
+- `--color-accent`#2D9CDA   — hlavní brandová modrá z holoboard.cz, použitá na eyebrow popisky, ikony a drobné akcenty
+- `--color-accent-orange` #FF6B0F — brandová oranžová z holoboard.cz, použitá jen výjimečně (např. cena/total, hlavní CTA v košíku)
 - `--color-muted` #6B7280   — sekundární text
 
-Zásada: 95 % plochy černobílá/šedá, barva jen tam, kde má vést pozornost (primární tlačítko, aktivní stav, cena). Oproti holoboard.cz (syté #2D9CDA / #FF6B0F) jsou obě barvy záměrně ztlumené a tmavší, aby působily premiově a ne křiklavě.
+Zásada: barvy jsou originální brandové odstíny holoboard.cz, ale nasazené decentně — 95 % plochy zůstává černobílá/šedá a barva se objevuje jen v malých plochách (popisky, ikony, cena), nikdy jako velké barevné bloky jako na původním webu.
 
 ## Typografie
 - Font: **Inter** (`next/font/google`), variabilní řez.
