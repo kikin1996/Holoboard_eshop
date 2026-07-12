@@ -18,16 +18,16 @@ export default function Hero() {
           transition={{ duration: 0.8, ease: EASE }}
         >
           <p className="mb-4 text-sm font-medium uppercase tracking-widest text-accent">
-            Patentovaná technologie
+            Patentováno v České republice
           </p>
           <h1 className="text-6xl font-semibold leading-[1.05] tracking-tight text-ink md:text-7xl">
-            Sezení, které se
-            <br />
-            přizpůsobí vodě.
+            2 v 1 — paddleboard
+            <br />i kajak.
           </h1>
           <p className="mt-6 max-w-md text-lg text-muted">
-            HoloBoard je první hybridní systém sezení pro paddleboardy — během
-            vteřiny přejde z pohodlného křesla do plochého standu.
+            Holo Board je unikátní hybridní produkt, který kombinuje výhody
+            paddleboardu a kajaku v jednom designu. Vhodné pro děti, dospělé i
+            úplné začátečníky.
           </p>
           <div className="mt-10 flex flex-wrap gap-4">
             <Link
@@ -37,12 +37,15 @@ export default function Hero() {
               Koupit HoloBoard
             </Link>
             <Link
-              href="#technologie"
+              href="#specifikace"
               className="rounded-full border border-line px-8 py-4 text-sm font-medium text-ink transition-colors hover:bg-mist"
             >
-              Jak to funguje
+              Specifikace
             </Link>
           </div>
+          <p className="mt-8 text-sm text-muted">
+            Momentálně v předprodeji · dodací lhůta 6–14 týdnů
+          </p>
         </motion.div>
 
         <motion.div

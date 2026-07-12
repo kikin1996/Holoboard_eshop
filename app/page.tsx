@@ -1,7 +1,9 @@
 import Hero from '@/components/Hero';
+import WhyChoose from '@/components/WhyChoose';
 import FeatureSection from '@/components/FeatureSection';
 import SpecGrid from '@/components/SpecGrid';
-import VariantSwatches from '@/components/VariantSwatches';
+import EquipmentList from '@/components/EquipmentList';
+import Gallery from '@/components/Gallery';
 import Link from 'next/link';
 
 export default function HomePage() {
@@ -9,30 +11,38 @@ export default function HomePage() {
     <main>
       <Hero />
 
-      <FeatureSection
-        id="technologie"
-        eyebrow="Technologie"
-        title="Mechanismus, který myslí za vás"
-        description="Patentovaný sklápěcí rám mění HoloBoard z plochého standu na pohodlné křeslo jedním pohybem - beze šroubování, bez nářadí."
-        visual={<SpecGrid />}
-      />
+      <WhyChoose />
 
       <FeatureSection
-        id="produkt"
-        eyebrow="Produkt"
-        title="Jedna deska, dvě podoby"
-        description="HoloBoard Original je k dispozici ve dvou barevných provedeních, volitelně s příslušenstvím Weekend Kit pro celodenní výlety na vodě."
-        visual={<VariantSwatches />}
-        reverse
+        id="specifikace"
+        eyebrow="Specifikace"
+        title="Nafukovací plavidlo pro celou rodinu"
+        description="HoloBoard představuje inovativní hybrid mezi paddleboardem a kajakem, navržený tak, aby spojil pohodlí, stabilitu a zábavu na vodě do jednoho univerzálního plavidla."
+        visual={<SpecGrid />}
         tinted
       />
 
-      <section className="mx-auto max-w-6xl px-6 py-28 text-center md:py-36">
+      <FeatureSection
+        id="vybaveni"
+        eyebrow="Vybavení"
+        title="Vše potřebné je součástí balení"
+        description="HoloBoard je lehký a snadno přenosný - nafukovací konstrukce se pohodlně složí a vejde do batohu, ideální pro cestování i jednodenní výpravy."
+        visual={<EquipmentList />}
+        reverse
+      />
+
+      <Gallery />
+
+      <section
+        id="kontakt"
+        className="mx-auto max-w-6xl px-6 py-28 text-center md:py-36"
+      >
         <h2 className="text-4xl font-semibold tracking-tight text-ink md:text-5xl">
-          Připraveno k vyplutí.
+          Předobjednejte si HoloBoard.
         </h2>
         <p className="mx-auto mt-5 max-w-md text-lg text-muted">
-          Doprava přes síť výdejních míst Zásilkovny, platba bezpečně přes ComGate.
+          Momentálně v předprodeji, dodací lhůta 6–14 týdnů. Doprava přes síť
+          výdejních míst Zásilkovny, platba bezpečně přes ComGate.
         </p>
         <Link
           href="/kosik"
@@ -40,6 +50,17 @@ export default function HomePage() {
         >
           Přejít do košíku
         </Link>
+        <p className="mt-8 text-sm text-muted">
+          Potřebujete pomoc? Napište na{' '}
+          <a href="mailto:info@holoboard.cz" className="text-ink underline underline-offset-4">
+            info@holoboard.cz
+          </a>{' '}
+          nebo volejte{' '}
+          <a href="tel:+420777726001" className="text-ink underline underline-offset-4">
+            777 726 001
+          </a>
+          .
+        </p>
       </section>
     </main>
   );

@@ -6,25 +6,26 @@ export default function Footer() {
           <div>
             <p className="text-lg font-semibold tracking-tight text-ink">HoloBoard</p>
             <p className="mt-2 max-w-xs">
-              Patentovaný hybridní systém sezení pro paddleboardy. Navrženo pro vodu,
-              postaveno na pohodlí.
+              Všestranné rekreační plavidlo pro celou rodinu. 2v1 paddleboard a
+              kajak, vyvinutý a patentovaný v České republice.
             </p>
           </div>
           <div className="flex gap-12">
             <div>
-              <p className="mb-3 font-medium text-ink">Produkt</p>
+              <p className="mb-3 font-medium text-ink">Kontakt</p>
               <ul className="space-y-2">
-                <li>Přehled</li>
-                <li>Technologie</li>
-                <li>Příslušenství</li>
+                <li>info@holoboard.cz</li>
+                <li>777 726 001</li>
+                <li>@holoboard_</li>
               </ul>
             </div>
             <div>
-              <p className="mb-3 font-medium text-ink">Podpora</p>
+              <p className="mb-3 font-medium text-ink">Právní dokumenty</p>
               <ul className="space-y-2">
-                <li>Doprava a Zásilkovna</li>
-                <li>Platba a reklamace</li>
-                <li>Kontakt</li>
+                <li>Podmínky ochrany osobních údajů</li>
+                <li>Všeobecné obchodní podmínky</li>
+                <li>Vzor odstoupení od smlouvy</li>
+                <li>Vzor reklamačního formuláře</li>
               </ul>
             </div>
           </div>

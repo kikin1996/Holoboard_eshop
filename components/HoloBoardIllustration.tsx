@@ -1,4 +1,4 @@
-// Minimalistická line-art ilustrace HoloBoard sedačky na paddleboardu.
+// Minimalistická line-art ilustrace HoloBoard sedačky připnuté na paddleboardu.
 // Nahrazuje reálnou produktovou fotografii, dokud není k dispozici -
 // drží se stejné jedné akcentní barvy (teal) jako zbytek designu.
 export default function HoloBoardIllustration() {

@@ -1,24 +1,29 @@
-import { Timer, ShieldCheck, Weight } from 'lucide-react';
+import { Layers, Weight, Ruler, Gauge } from 'lucide-react';
 
 const specs = [
   {
-    icon: Timer,
-    label: 'Přeměna sedu ↔ stand',
-    value: 'pod 10 sekund',
-  },
-  {
-    icon: ShieldCheck,
-    label: 'Odolnost materiálu',
-    value: 'mořská i sladká voda',
+    icon: Layers,
+    label: 'Konstrukce',
+    value: 'nafukovací SUP, dvouvrstvý PVC drop-stitch',
   },
   {
     icon: Weight,
-    label: 'Nosnost systému',
-    value: 'do 120 kg',
+    label: 'Nosnost',
+    value: '110 kg (doporučeno do ~90 kg jezdce)',
+  },
+  {
+    icon: Ruler,
+    label: 'Rozměry',
+    value: '320 × 88 × 15 cm',
+  },
+  {
+    icon: Gauge,
+    label: 'Doporučený tlak',
+    value: '12–15 PSI',
   },
 ];
 
-// Vizuál pro sekci "Technologie" - jednoduchá specifikační mřížka
+// Vizuál pro sekci "Specifikace" - jednoduchá specifikační mřížka
 // místo produktové fotografie.
 export default function SpecGrid() {
   return (

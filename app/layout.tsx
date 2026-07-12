@@ -10,8 +10,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'HoloBoard',
-  description: 'Prémiový hybridní systém sezení pro paddleboardy.',
+  title: 'HoloBoard – 2v1 Paddleboard a Kajak',
+  description:
+    'HoloBoard je stabilní a pohodlné plavidlo, které kombinuje výhody paddleboardu a kajaku. Vhodné pro děti, dospělé i úplné začátečníky.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

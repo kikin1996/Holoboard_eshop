@@ -4,15 +4,9 @@ import Cart from '@/components/Cart';
 // podle cart ID uloženého v cookie (viz ARCHITECTURE.md, kap. 1.3).
 const sampleItems = [
   {
-    variantId: 'variant-ocean-blue-weekend',
-    name: 'HoloBoard Original — Ocean Blue / Weekend Kit',
-    unitPriceCents: 2499000, // 24 990 Kč
-    quantity: 1,
-  },
-  {
-    variantId: 'variant-sand-white-none',
-    name: 'HoloBoard Original — Sand White / Bez příslušenství',
-    unitPriceCents: 2199000, // 21 990 Kč
+    variantId: 'holoboard-standard',
+    name: 'HoloBoard — 2v1 Paddleboard a Kajak',
+    unitPriceCents: 899000, // 8 990 Kč
     quantity: 1,
   },
 ];
