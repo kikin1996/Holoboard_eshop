@@ -1,8 +1,8 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import Link from 'next/link';
-import HoloBoardIllustration from './HoloBoardIllustration';
 
 // Křivka a časování odpovídají DESIGN.md - jemný "ease-out-expo" pocit,
 // žádné rychlé/agresivní animace.
@@ -52,9 +52,16 @@ export default function Hero() {
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: EASE, delay: 0.15 }}
-          className="rounded-3xl bg-mist p-10"
+          className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-mist"
         >
-          <HoloBoardIllustration />
+          <Image
+            src="/gallery/0906-min.jpg"
+            alt="HoloBoard na výletě u jezera"
+            fill
+            priority
+            sizes="(min-width: 768px) 50vw, 100vw"
+            className="object-cover"
+          />
         </motion.div>
       </div>
     </section>

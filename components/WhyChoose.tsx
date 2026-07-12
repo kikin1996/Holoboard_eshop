@@ -1,25 +1,25 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ShieldCheck, Waves, Armchair } from 'lucide-react';
+import Image from 'next/image';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 const reasons = [
   {
-    icon: ShieldCheck,
+    icon: '/icons/footing.png',
     title: 'Nepřekonatelná stabilita',
     description:
       'Díky unikátnímu designu s nízkým sedadlem poskytuje Holo Board stabilitu, která převyšuje běžné paddleboardy.',
   },
   {
-    icon: Waves,
+    icon: '/icons/paddleboarding.png',
     title: 'Všestrannost',
     description:
       'Snadno se přemění z paddleboardu na kajak, což umožňuje dynamický zážitek na vodě.',
   },
   {
-    icon: Armchair,
+    icon: '/icons/ergonomic.png',
     title: 'Pohodlí',
     description:
       'Užijte si dlouhé jízdy bez námahy a nepohodlí díky ergonomickému designu, který zajišťuje přirozenou polohu při pádlování.',
@@ -47,7 +47,7 @@ export default function WhyChoose() {
       </motion.div>
 
       <div className="mt-16 grid gap-6 md:grid-cols-3">
-        {reasons.map(({ icon: Icon, title, description }, index) => (
+        {reasons.map(({ icon, title, description }, index) => (
           <motion.div
             key={title}
             initial={{ opacity: 0, y: 24 }}
@@ -56,8 +56,8 @@ export default function WhyChoose() {
             transition={{ duration: 0.7, ease: EASE, delay: index * 0.1 }}
             className="rounded-3xl bg-mist p-8"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-paper text-accent">
-              <Icon size={22} strokeWidth={1.75} />
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-paper p-2.5">
+              <Image src={icon} alt="" width={28} height={28} />
             </div>
             <h3 className="mt-6 text-lg font-medium text-ink">{title}</h3>
             <p className="mt-2 text-sm text-muted">{description}</p>

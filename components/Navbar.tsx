@@ -14,6 +14,9 @@ export default function Navbar() {
           <Link href="/#produkt" className="transition-colors hover:text-ink">
             Produkt
           </Link>
+          <Link href="/#video" className="transition-colors hover:text-ink">
+            Video
+          </Link>
           <Link href="/#specifikace" className="transition-colors hover:text-ink">
             Specifikace
           </Link>

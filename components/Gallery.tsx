@@ -1,21 +1,21 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Image as ImageIcon } from 'lucide-react';
+import Image from 'next/image';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
-const captions = [
-  'Testovací jízda na jezeře',
-  'Detail sedačky a popruhů',
-  'Konvertibilní pádlo 2v1',
-  'Transportní batoh',
-  'V kajakovém režimu',
-  'Rodinný výlet na vodě',
+const photos = [
+  { src: '/gallery/P1574883-min.jpg', alt: 'HoloBoard na vodě' },
+  { src: '/gallery/P1574905-min.jpg', alt: 'HoloBoard detail' },
+  { src: '/gallery/P1574907-min.jpg', alt: 'HoloBoard v akci' },
+  { src: '/gallery/P1574944OB-min.jpg', alt: 'HoloBoard s jezdcem' },
+  { src: '/gallery/P1574966-min.jpg', alt: 'HoloBoard na klidné vodě' },
+  { src: '/gallery/P1574989-min.jpg', alt: 'HoloBoard testovací jízda' },
 ];
 
-// Sekce "Galerie" - dokud nejsou k dispozici reálné produktové fotky,
-// drží stejnou mřížku jako budoucí fotogalerie (nahradit <img> po dodání fotek).
+// Sekce "Galerie" - reálné produktové fotky HoloBoardu (staženo z
+// shop.holoboard.cz/user/documents/upload/, viz public/gallery).
 export default function Gallery() {
   return (
     <section id="galerie" className="bg-mist">
@@ -36,17 +36,22 @@ export default function Gallery() {
         </motion.div>
 
         <div className="mt-16 grid grid-cols-2 gap-4 md:grid-cols-3">
-          {captions.map((caption, index) => (
+          {photos.map((photo, index) => (
             <motion.div
-              key={caption}
+              key={photo.src}
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-100px' }}
               transition={{ duration: 0.6, ease: EASE, delay: index * 0.05 }}
-              className="flex aspect-square flex-col items-center justify-center gap-3 rounded-3xl bg-paper p-6 text-center shadow-sm"
+              className="relative aspect-square overflow-hidden rounded-3xl bg-paper shadow-sm"
             >
-              <ImageIcon size={28} strokeWidth={1.5} className="text-accent" />
-              <p className="text-sm text-muted">{caption}</p>
+              <Image
+                src={photo.src}
+                alt={photo.alt}
+                fill
+                sizes="(min-width: 768px) 33vw, 50vw"
+                className="object-cover"
+              />
             </motion.div>
           ))}
         </div>

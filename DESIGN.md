@@ -31,5 +31,5 @@ Zásada: 95 % plochy černobílá/šedá, barva jen tam, kde má vést pozornost
 - Primární: `rounded-full bg-ink text-white px-8 py-4`, hover mírně tmavší + `scale-[1.02]`
 - Sekundární: `rounded-full border border-line text-ink px-8 py-4`, hover `bg-mist`
 
-## Ilustrace produktu
-Bez reálné fotografie produktu používáme vlastní minimalistickou line-art SVG ilustraci HoloBoard sedačky (jednoduché tvary, jedna akcentní barva) – do budoucna nahraditelná reálnými produktovými fotkami ve stejné kompozici.
+## Produktové fotky
+Reálné fotky HoloBoardu (`public/gallery/`) - v Hero sekci a galerii se zobrazují přes `next/image` s `object-cover` uvnitř `rounded-3xl` rámu, aby držely stejný jazyk jako zbytek layoutu (karty, zaoblení, žádné tvrdé ohraničení).
