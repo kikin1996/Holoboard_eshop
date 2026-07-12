@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 
 // Jednoduchá, "prosklená" navigace - fixní nahoře, minimum prvků (logo, 2 odkazy, košík).
@@ -6,8 +7,15 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-line/60 bg-paper/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/" className="text-lg font-semibold tracking-tight text-ink">
-          HoloBoard
+        <Link href="/" className="flex items-center gap-2">
+          <Image
+            src="/logo-holoboard.png"
+            alt="HoloBoard"
+            width={36}
+            height={32}
+            className="h-8 w-auto"
+            priority
+          />
         </Link>
 
         <nav className="hidden items-center gap-8 text-sm text-muted md:flex">

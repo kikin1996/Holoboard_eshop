@@ -254,7 +254,7 @@ export default function Cart({ initialItems }: CartProps) {
         </div>
         <div className="flex justify-between border-t border-line pt-3 text-base font-semibold text-ink">
           <span>Celkem</span>
-          <span>{formatPrice(totalCents)}</span>
+          <span className="text-accent-orange">{formatPrice(totalCents)}</span>
         </div>
       </div>
 
