@@ -97,13 +97,13 @@ ComGate REST API (`https://payments.comgate.cz/v2.0/`) nemá klasické HMAC pode
 4. Po zaplacení ComGate zavolá váš `POST /api/webhooks/comgate` s `transId`, `refId`, `status` (`PAID`/`CANCELLED`).
 5. **Nikdy se nevěří obsahu webhooku samotnému** – Next.js route si sama zavolá zpět `POST https://payments.comgate.cz/v2.0/status` s `merchant` + `secret` + `transId` a ověří skutečný stav platby přímo u ComGate.
 6. Až po tomto ověření se objednávka v Meduse/Strapi označí jako zaplacená (`payment_status = captured`), sníží se sklad a odešle e-mail zákazníkovi.
-7. Zákazník se po návratu z brány (`redirectUrl`) dostane na "Děkujeme" stránku, která přes `GET /api/orders/:id/status` zjistí aktuální (ověřený) stav – **stránka nikdy nespoléhá jen na to, že uživatel byl přesměrován zpět**, protože webhook a redirect přichází asynchronně a nezávisle na sobě.
+7. Zákazník se po návratu z brány (`redirectUrl`) dostane na „Děkujeme“ stránku, která přes `GET /api/orders/:id/status` zjistí aktuální (ověřený) stav – **stránka nikdy nespoléhá jen na to, že uživatel byl přesměrován zpět**, protože webhook a redirect přichází asynchronně a nezávisle na sobě.
 
 ### 1.6 Shrnutí bezpečnostních zásad
 
 1. Tajné klíče (ComGate `secret`, admin tokeny) pouze v serverových `.env`, nikdy v `NEXT_PUBLIC_*`.
 2. Cena se vždy dopočítává na serveru (Medusa/Strapi + Next.js route) – klient posílá jen ID varianty a množství, nikdy částku.
-3. Platba se potvrzuje dvojitě: webhook je jen "spouštěč", reálný stav se ověřuje zpětným dotazem na ComGate.
+3. Platba se potvrzuje dvojitě: webhook je jen „spouštěč“, reálný stav se ověřuje zpětným dotazem na ComGate.
 4. Next.js API routy pro checkout/webhook běží v Node runtime (ne Edge), protože potřebují tajné proměnné a plnou HTTP knihovnu.
 
 ---
