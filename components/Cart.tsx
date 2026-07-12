@@ -196,7 +196,7 @@ export default function Cart({ initialItems }: CartProps) {
   }, [items, selectedPoint]);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 p-6">
+    <div className="mx-auto max-w-2xl px-6 py-20 md:py-28">
       {/* Načtení oficiální knihovny Packeta Widgetu - jen na klientovi,
           po dokončení nastavíme isWidgetReady, aby šlo tlačítko použít. */}
       <Script
@@ -205,19 +205,21 @@ export default function Cart({ initialItems }: CartProps) {
         onReady={() => setIsWidgetReady(true)}
       />
 
-      <h1 className="text-2xl font-semibold">Váš košík</h1>
+      <h1 className="text-4xl font-semibold tracking-tight text-ink md:text-5xl">
+        Váš košík
+      </h1>
 
       {/* --- Přehled produktů --- */}
-      <ul className="divide-y divide-gray-200">
+      <ul className="mt-10 divide-y divide-line">
         {items.map((item) => (
-          <li key={item.variantId} className="flex items-center justify-between py-4">
+          <li key={item.variantId} className="flex items-center justify-between py-6">
             <div>
-              <p className="font-medium">{item.name}</p>
-              <p className="text-sm text-gray-500">
+              <p className="font-medium text-ink">{item.name}</p>
+              <p className="mt-1 text-sm text-muted">
                 {formatPrice(item.unitPriceCents)} / ks
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <input
                 type="number"
                 min={0}
@@ -225,55 +227,59 @@ export default function Cart({ initialItems }: CartProps) {
                 onChange={(e) =>
                   updateQuantity(item.variantId, Number(e.target.value))
                 }
-                className="w-16 rounded border border-gray-300 px-2 py-1 text-center"
+                className="w-16 rounded-full border border-line px-3 py-2 text-center text-sm focus:border-accent focus:outline-none"
               />
-              <span className="w-24 text-right font-medium">
+              <span className="w-28 text-right font-medium text-ink">
                 {formatPrice(item.unitPriceCents * item.quantity)}
               </span>
             </div>
           </li>
         ))}
         {items.length === 0 && (
-          <li className="py-4 text-gray-500">Košík je prázdný.</li>
+          <li className="py-6 text-muted">Košík je prázdný.</li>
         )}
       </ul>
 
       {/* --- Kalkulace ceny --- */}
-      <div className="space-y-1 border-t border-gray-200 pt-4 text-sm">
-        <div className="flex justify-between">
+      <div className="mt-8 space-y-2 rounded-3xl bg-mist p-6 text-sm">
+        <div className="flex justify-between text-muted">
           <span>Mezisoučet</span>
-          <span>{formatPrice(subtotalCents)}</span>
+          <span className="text-ink">{formatPrice(subtotalCents)}</span>
         </div>
-        <div className="flex justify-between">
+        <div className="flex justify-between text-muted">
           <span>Doprava (Zásilkovna)</span>
-          <span>{selectedPoint ? formatPrice(shippingCents) : '—'}</span>
+          <span className="text-ink">
+            {selectedPoint ? formatPrice(shippingCents) : '—'}
+          </span>
         </div>
-        <div className="flex justify-between text-base font-semibold">
+        <div className="flex justify-between border-t border-line pt-3 text-base font-semibold text-ink">
           <span>Celkem</span>
           <span>{formatPrice(totalCents)}</span>
         </div>
       </div>
 
       {/* --- Výběr dopravy --- */}
-      <div className="rounded border border-gray-200 p-4">
+      <div className="mt-6 rounded-3xl border border-line p-6">
         <button
           type="button"
           onClick={handleOpenPacketaWidget}
-          className="rounded bg-gray-900 px-4 py-2 text-white hover:bg-gray-700"
+          className="rounded-full bg-ink px-6 py-3 text-sm font-medium text-white transition-transform hover:scale-[1.02]"
         >
           {selectedPoint ? 'Změnit výdejní místo' : 'Vybrat výdejní místo'}
         </button>
 
         {selectedPoint && (
-          <p className="mt-2 text-sm text-gray-700">
-            Vybraná pobočka: <strong>{selectedPoint.name}</strong>{' '}
-            <span className="text-gray-400">(ID: {selectedPoint.id})</span>
+          <p className="mt-4 text-sm text-muted">
+            Vybraná pobočka: <strong className="text-ink">{selectedPoint.name}</strong>{' '}
+            <span className="text-muted">(ID: {selectedPoint.id})</span>
           </p>
         )}
       </div>
 
       {errorMessage && (
-        <p className="rounded bg-red-50 p-3 text-sm text-red-700">{errorMessage}</p>
+        <p className="mt-6 rounded-2xl bg-red-50 p-4 text-sm text-red-700">
+          {errorMessage}
+        </p>
       )}
 
       {/* --- Přechod k platbě --- */}
@@ -281,7 +287,7 @@ export default function Cart({ initialItems }: CartProps) {
         type="button"
         onClick={handleCheckout}
         disabled={isSubmitting || items.length === 0}
-        className="w-full rounded bg-emerald-600 px-4 py-3 font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+        className="mt-6 w-full rounded-full bg-accent px-6 py-4 text-sm font-medium text-white transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isSubmitting ? 'Zakládám platbu…' : 'Přejít k platbě'}
       </button>

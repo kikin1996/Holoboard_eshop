@@ -1,22 +1,46 @@
-import Cart from '@/components/Cart';
-
-// Ukázková data - v reálném provozu by se položky natáhly z Medusa Cart API
-// podle cart ID uloženého v cookie (viz ARCHITECTURE.md, kap. 1.3).
-const sampleItems = [
-  {
-    variantId: 'variant-ocean-blue-weekend',
-    name: 'HoloBoard Original — Ocean Blue / Weekend Kit',
-    unitPriceCents: 2499000, // 24 990 Kč
-    quantity: 1,
-  },
-  {
-    variantId: 'variant-sand-white-none',
-    name: 'HoloBoard Original — Sand White / Bez příslušenství',
-    unitPriceCents: 2199000, // 21 990 Kč
-    quantity: 1,
-  },
-];
+import Hero from '@/components/Hero';
+import FeatureSection from '@/components/FeatureSection';
+import SpecGrid from '@/components/SpecGrid';
+import VariantSwatches from '@/components/VariantSwatches';
+import Link from 'next/link';
 
 export default function HomePage() {
-  return <Cart initialItems={sampleItems} />;
+  return (
+    <main>
+      <Hero />
+
+      <FeatureSection
+        id="technologie"
+        eyebrow="Technologie"
+        title="Mechanismus, který myslí za vás"
+        description="Patentovaný sklápěcí rám mění HoloBoard z plochého standu na pohodlné křeslo jedním pohybem - beze šroubování, bez nářadí."
+        visual={<SpecGrid />}
+      />
+
+      <FeatureSection
+        id="produkt"
+        eyebrow="Produkt"
+        title="Jedna deska, dvě podoby"
+        description="HoloBoard Original je k dispozici ve dvou barevných provedeních, volitelně s příslušenstvím Weekend Kit pro celodenní výlety na vodě."
+        visual={<VariantSwatches />}
+        reverse
+        tinted
+      />
+
+      <section className="mx-auto max-w-6xl px-6 py-28 text-center md:py-36">
+        <h2 className="text-4xl font-semibold tracking-tight text-ink md:text-5xl">
+          Připraveno k vyplutí.
+        </h2>
+        <p className="mx-auto mt-5 max-w-md text-lg text-muted">
+          Doprava přes síť výdejních míst Zásilkovny, platba bezpečně přes ComGate.
+        </p>
+        <Link
+          href="/kosik"
+          className="mt-10 inline-block rounded-full bg-ink px-8 py-4 text-sm font-medium text-white transition-transform hover:scale-[1.02]"
+        >
+          Přejít do košíku
+        </Link>
+      </section>
+    </main>
+  );
 }
