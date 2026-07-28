@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { sendOrderPaidEmail } from '@/lib/email';
 
 // =============================================================================
 // POST /api/webhooks/comgate
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
   if (verifiedStatus === 'PAID' || verifiedStatus === 'CANCELLED') {
     // Párování přes orderNumber (refId) i paymentTransactionId zároveň -
     // pojistka proti tomu, aby cizí/podvržený transId přepsal jinou objednávku.
-    await prisma.order.updateMany({
+    const { count } = await prisma.order.updateMany({
       where: {
         orderNumber: refId ?? undefined,
         paymentTransactionId: transId,
@@ -52,7 +53,18 @@ export async function POST(request: NextRequest) {
           ? { status: 'PAID', paymentStatus: 'PAID' }
           : { status: 'CANCELLED', paymentStatus: 'CANCELLED' },
     });
-    // [TODO] Po PAID odečíst sklad (Inventory) a odeslat potvrzovací e-mail zákazníkovi.
+
+    if (count > 0 && verifiedStatus === 'PAID' && refId) {
+      const order = await prisma.order.findUnique({ where: { orderNumber: refId } });
+      if (order) {
+        await sendOrderPaidEmail({
+          to: order.customerEmail,
+          orderNumber: order.orderNumber,
+          totalPriceCents: order.totalPriceCents,
+        });
+      }
+    }
+    // [TODO] Po PAID odečíst sklad (Inventory).
   }
 
   // ComGate očekává HTTP 200 jako potvrzení přijetí notifikace

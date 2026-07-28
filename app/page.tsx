@@ -1,5 +1,6 @@
 import Hero from '@/components/Hero';
 import WhyChoose from '@/components/WhyChoose';
+import StorySection from '@/components/StorySection';
 import VideoSection from '@/components/VideoSection';
 import FeatureSection from '@/components/FeatureSection';
 import SpecGrid from '@/components/SpecGrid';
@@ -13,6 +14,8 @@ export default function HomePage() {
       <Hero />
 
       <WhyChoose />
+
+      <StorySection />
 
       <VideoSection />
 

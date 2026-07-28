@@ -4,6 +4,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { CartProvider } from '@/components/CartContext';
 import { AuthProvider } from '@/components/AuthProvider';
+import ScrollToTopButton from '@/components/ScrollToTopButton';
 import './globals.css';
 
 const inter = Inter({
@@ -41,6 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Navbar />
             {children}
             <Footer />
+            <ScrollToTopButton />
           </CartProvider>
         </AuthProvider>
       </body>

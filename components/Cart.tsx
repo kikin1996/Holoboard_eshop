@@ -18,10 +18,11 @@
 //      v této komponentě vůbec neobjevuje - je jen na serveru.
 // =============================================================================
 
-import { useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Script from 'next/script';
-import { Minus, Plus, Trash2, ShoppingBag, MapPin } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { Minus, Plus, Trash2, ShoppingBag, MapPin, Mail } from 'lucide-react';
 import { useCart } from '@/components/CartContext';
 import { SHIPPING_CENTS, formatPrice } from '@/lib/catalog';
 
@@ -58,10 +59,20 @@ interface CartProps {
 
 export default function Cart({ paymentCancelled = false }: CartProps) {
   const { items, isHydrated, updateQuantity, removeItem } = useCart();
+  const { data: session } = useSession();
   const [selectedPoint, setSelectedPoint] = useState<PacketaPoint | null>(null);
+  const [email, setEmail] = useState('');
   const [isWidgetReady, setIsWidgetReady] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Přihlášený zákazník e-mail nevyplňuje - objednávka se stejně napojí
+  // na jeho účet a notifikace o stavu chodí na e-mail z profilu.
+  useEffect(() => {
+    if (session?.user?.email) setEmail(session.user.email);
+  }, [session?.user?.email]);
+
+  const isEmailValid = /^\S+@\S+\.\S+$/.test(email);
 
   // --- Kalkulace ceny (čistě klientský výpočet pro zobrazení; finální
   //     autoritativní cena se vždy přepočítá znovu na serveru v /api/checkout) ---
@@ -117,6 +128,10 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
   const handleCheckout = useCallback(async () => {
     setErrorMessage(null);
 
+    if (!isEmailValid) {
+      setErrorMessage('Zadejte prosím platný e-mail pro potvrzení objednávky.');
+      return;
+    }
     if (!selectedPoint) {
       setErrorMessage('Nejdřív prosím vyberte výdejní místo Zásilkovny.');
       return;
@@ -139,6 +154,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
             variantId: item.variantId,
             quantity: item.quantity,
           })),
+          email,
           shipping: {
             method: 'PACKETA_ZBOX',
             packetaBranchId: selectedPoint.id,
@@ -164,7 +180,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
       setErrorMessage('Nepodařilo se zahájit platbu, zkuste to prosím znovu.');
       setIsSubmitting(false);
     }
-  }, [items, selectedPoint]);
+  }, [items, selectedPoint, email, isEmailValid]);
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-20 md:py-28">
@@ -280,6 +296,28 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
               <span>Celkem</span>
               <span className="text-accent-orange">{formatPrice(totalCents)}</span>
             </div>
+          </div>
+
+          {/* --- E-mail pro potvrzení a notifikace o stavu objednávky --- */}
+          <div className="mt-6 rounded-3xl border border-line p-6">
+            <label htmlFor="checkout-email" className="flex items-center gap-2 text-sm font-medium text-ink">
+              <Mail size={15} strokeWidth={2} />
+              E-mail
+            </label>
+            <input
+              id="checkout-email"
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              disabled={Boolean(session?.user?.email)}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="vas@email.cz"
+              className="mt-3 w-full rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent disabled:bg-mist disabled:text-muted"
+            />
+            <p className="mt-2 text-xs text-muted">
+              Pošleme na něj potvrzení objednávky a informaci o odeslání.
+            </p>
           </div>
 
           {/* --- Výběr dopravy --- */}

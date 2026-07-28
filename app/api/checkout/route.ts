@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getVariant, SHIPPING_CENTS } from '@/lib/catalog';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sendOrderPaidEmail } from '@/lib/email';
 
 // =============================================================================
 // POST /api/checkout
@@ -18,6 +19,7 @@ import { prisma } from '@/lib/prisma';
 
 interface CheckoutRequestBody {
   items: { variantId: string; quantity: number }[];
+  email?: string;
   shipping: {
     method: 'PACKETA_ZBOX' | 'PACKETA_HOME' | 'COURIER';
     packetaBranchId: string;
@@ -31,6 +33,20 @@ export async function POST(request: NextRequest) {
   if (!body.items?.length || !body.shipping?.packetaBranchId) {
     return NextResponse.json(
       { error: 'Chybí položky košíku nebo výdejní místo.' },
+      { status: 400 }
+    );
+  }
+
+  // Přihlášený zákazník má e-mail na účtu (bezpečnější než věřit tělu
+  // požadavku) - host musí zadat platný e-mail v checkout formuláři, aby
+  // mu mohly dojít notifikace o stavu objednávky.
+  const session = await auth();
+  const guestEmail = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+  const customerEmail = session?.user?.email ?? guestEmail;
+
+  if (!customerEmail || !customerEmail.includes('@')) {
+    return NextResponse.json(
+      { error: 'Zadejte prosím platný e-mail pro potvrzení objednávky.' },
       { status: 400 }
     );
   }
@@ -65,12 +81,10 @@ export async function POST(request: NextRequest) {
 
   // Přihlášený zákazník se k objednávce připojí rovnou (pro přehled
   // objednávek na /ucet) - checkout ale funguje i bez přihlášení (guest).
-  const session = await auth();
-
   const order = await prisma.order.create({
     data: {
       orderNumber,
-      customerEmail: session?.user?.email ?? 'zakaznik@example.com', // v reálu z checkout formuláře pro guesty
+      customerEmail,
       customerName: session?.user?.name ?? null,
       userId: session?.user?.id ?? null,
       totalPriceCents,
@@ -95,6 +109,7 @@ export async function POST(request: NextRequest) {
       where: { id: order.id },
       data: { status: 'PAID', paymentStatus: 'PAID' },
     });
+    await sendOrderPaidEmail({ to: customerEmail, orderNumber, totalPriceCents });
     return NextResponse.json({
       redirectUrl: `${siteUrl}/objednavka/dekujeme?demo=1&orderNumber=${orderNumber}`,
     });
