@@ -27,7 +27,7 @@ export default function FeatureSection({
   tinted = false,
 }: FeatureSectionProps) {
   return (
-    <section id={id} className={tinted ? 'bg-mist' : undefined}>
+    <section id={id} className={tinted ? 'rounded-b-[2.5rem] bg-mist md:rounded-b-[4rem]' : undefined}>
       <div className="mx-auto max-w-6xl px-6 py-28 md:py-36">
         <div
           className={`grid items-center gap-12 md:grid-cols-2 md:gap-16 ${

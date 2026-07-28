@@ -47,15 +47,25 @@ function WaveLayer({ fill, baseline, amplitude, duration, reverse, opacity = 1 }
   );
 }
 
+// Vrstvená vlnka pro přechod mezi světlým pozadím stránky a plnou barvou
+// sekce. `flip` (rotace o 180°) ze stejné sady vrstev udělá zrcadlový
+// "výstup" zpátky do světlého pozadí - vodorovné otočení vlně nevadí,
+// protože je to periodická dlaždice.
+function WaveTransition({ flip }: { flip?: boolean }) {
+  return (
+    <div className={`relative h-24 overflow-hidden md:h-32 ${flip ? 'rotate-180' : ''}`}>
+      <WaveLayer fill="#EDF5FA" baseline={40} amplitude={22} duration={32} />
+      <WaveLayer fill="#8ED0EF" baseline={62} amplitude={26} duration={24} reverse />
+      <WaveLayer fill="#2D9CDA" baseline={86} amplitude={18} duration={20} />
+    </div>
+  );
+}
+
 export default function StorySection() {
   return (
     <section className="relative">
       {/* Vrstvené vlnky - přechod ze světlého pozadí stránky do modré sekce. */}
-      <div className="relative h-24 overflow-hidden md:h-32">
-        <WaveLayer fill="#EDF5FA" baseline={40} amplitude={22} duration={32} />
-        <WaveLayer fill="#8ED0EF" baseline={62} amplitude={26} duration={24} reverse />
-        <WaveLayer fill="#2D9CDA" baseline={86} amplitude={18} duration={20} />
-      </div>
+      <WaveTransition />
 
       <div className="bg-accent">
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-24 pt-4 md:grid-cols-2 md:gap-16 md:pb-32 md:pt-8">
@@ -121,6 +131,11 @@ export default function StorySection() {
           </motion.div>
         </div>
       </div>
+
+      {/* Zrcadlová vlnka - výstup zpátky do světlého pozadí stránky. Mimo
+          modrý blok, ať "prosvítající" vrstvy vidí skutečné bílé pozadí
+          stránky za sebou, ne modrou z předchozího divu. */}
+      <WaveTransition flip />
     </section>
   );
 }

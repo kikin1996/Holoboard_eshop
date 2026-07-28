@@ -56,8 +56,8 @@ export default function WhyChoose() {
             transition={{ duration: 0.7, ease: EASE, delay: index * 0.1 }}
             className="rounded-3xl bg-mist p-8"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-paper p-2.5">
-              <Image src={icon} alt="" width={28} height={28} />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-orange p-2.5">
+              <Image src={icon} alt="" width={28} height={28} className="brightness-0 invert" />
             </div>
             <h3 className="mt-6 text-lg font-medium text-ink">{title}</h3>
             <p className="mt-2 text-sm text-muted">{description}</p>

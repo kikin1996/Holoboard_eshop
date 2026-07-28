@@ -42,7 +42,11 @@ interface CartContextValue {
   addItem: (item: Omit<CartItem, 'quantity'>, quantity?: number) => void;
   updateQuantity: (variantId: string, quantity: number) => void;
   removeItem: (variantId: string) => void;
+  /** Vyprázdní košík a uloží prázdný stav i na účet (po dokončené objednávce). */
   clear: () => void;
+  /** Vyprázdní košík jen lokálně, BEZ přepsání uloženého košíku na účtu
+   *  (odhlášení - obsah má při příštím přihlášení zase naskočit zpátky). */
+  clearLocal: () => void;
 }
 
 const STORAGE_KEY = 'holoboard-cart-v1';
@@ -61,6 +65,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // přihlášení - reset na false při odhlášení, ať se při dalším přihlášení
   // (třeba jiného účtu) načte znovu.
   const hasLoadedAccountCart = useRef(false);
+  // Nastaví se před clearLocal(), ať sync-do-účtu efekt tuhle jednu změnu
+  // přeskočí (odhlášení má schovat košík jen lokálně, ne smazat i na účtu).
+  const suppressNextSync = useRef(false);
 
   // Načtení uloženého košíku - jen na klientovi, po mountu.
   useEffect(() => {
@@ -115,6 +122,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // aby přežila odhlášení/nové přihlášení (i na jiném zařízení).
   useEffect(() => {
     if (status !== 'authenticated' || !isHydrated || !hasLoadedAccountCart.current) return;
+    if (suppressNextSync.current) {
+      suppressNextSync.current = false;
+      return;
+    }
     fetch('/api/cart', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -156,7 +167,29 @@ export function CartProvider({ children }: { children: ReactNode }) {
       removeItem: (variantId) => {
         setItems((prev) => prev.filter((i) => i.variantId !== variantId));
       },
-      clear: () => setItems([]),
+      clear: () => {
+        setItems([]);
+        // Zapsáno rovnou synchronně, ne přes efekt - klidně nekritické, ale
+        // pro jistotu stejné jako u clearLocal (viz komentář tam).
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+        } catch {
+          // localStorage může být plné/zakázané.
+        }
+      },
+      clearLocal: () => {
+        suppressNextSync.current = true;
+        setItems([]);
+        // Zapsáno rovnou synchronně (ne až přes efekt) - signOut() hned
+        // po zavolání téhle funkce zahájí navigaci pryč ze stránky, což
+        // by mohlo react efekt přerušit dřív, než se stihne uložit do
+        // localStorage, a v úložišti by tak zůstal starý (neprázdný) košík.
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+        } catch {
+          // localStorage může být plné/zakázané.
+        }
+      },
     }),
     [items, isHydrated]
   );

@@ -6,6 +6,7 @@ import FeatureSection from '@/components/FeatureSection';
 import SpecGrid from '@/components/SpecGrid';
 import EquipmentList from '@/components/EquipmentList';
 import Gallery from '@/components/Gallery';
+import CommunitySection from '@/components/CommunitySection';
 import Link from 'next/link';
 
 export default function HomePage() {
@@ -68,6 +69,8 @@ export default function HomePage() {
           .
         </p>
       </section>
+
+      <CommunitySection />
     </main>
   );
 }
