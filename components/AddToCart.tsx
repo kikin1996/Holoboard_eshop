@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { Minus, Plus, Check, ShoppingBag } from 'lucide-react';
 import { useCart } from '@/components/CartContext';
@@ -28,16 +28,26 @@ export default function AddToCart({ variant }: { variant: ProductVariant }) {
   // "mailto:" nic neudělá viditelně, pokud návštěvník nemá v systému
   // nastavený výchozí e-mailový klient - proto adresu navíc zkopírujeme
   // do schránky a zobrazíme potvrzení, ať tlačítko vždy k něčemu vede.
-  const handleAskClick = async () => {
-    try {
-      await navigator.clipboard.writeText(CONTACT_EMAIL);
-      setEmailCopied(true);
-      if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
-      copyResetTimer.current = setTimeout(() => setEmailCopied(false), 4000);
-    } catch {
-      // Clipboard API nemusí být dostupné (starší prohlížeč, zakázaná
-      // oprávnění) - mailto odkaz i tak proběhne dál.
-    }
+  // Default navigaci schválně zastavíme a mailto spustíme až PO dokončení
+  // kopírování - jinak prohlížeč při pokusu otevřít mail klienta odebere
+  // stránce focus a zápis do schránky tiše selže.
+  const handleAskClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+
+    navigator.clipboard
+      .writeText(CONTACT_EMAIL)
+      .then(() => {
+        setEmailCopied(true);
+        if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
+        copyResetTimer.current = setTimeout(() => setEmailCopied(false), 4000);
+      })
+      .catch(() => {
+        // Clipboard API nemusí být dostupné (starší prohlížeč, zakázaná
+        // oprávnění) - mailto odkaz i tak proběhne dál.
+      })
+      .finally(() => {
+        window.location.href = `mailto:${CONTACT_EMAIL}`;
+      });
   };
 
   const handleAdd = () => {
@@ -103,7 +113,11 @@ export default function AddToCart({ variant }: { variant: ProductVariant }) {
       </div>
 
       {emailCopied && (
-        <p className="mt-4 text-sm text-muted" role="status">
+        <p
+          className="mt-4 flex items-center gap-1.5 text-sm font-medium text-green-600"
+          role="status"
+        >
+          <Check size={16} strokeWidth={2.5} />
           E-mail {CONTACT_EMAIL} zkopírován do schránky.
         </p>
       )}

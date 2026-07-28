@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getVariant, SHIPPING_CENTS } from '@/lib/catalog';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 // =============================================================================
 // POST /api/checkout
@@ -36,10 +38,10 @@ export async function POST(request: NextRequest) {
   // ---------------------------------------------------------------------
   // 1) Autoritativní přepočet ceny na serveru - ceny se dohledávají
   //    v katalogu podle variantId, ceně z klienta se NIKDY nevěří.
-  //    (V reálném projektu by getVariant volal Medusa/Strapi admin API
-  //    a zároveň by se tu založil Order záznam se statusem PENDING.)
+  //    (V reálném projektu by getVariant volal Medusa/Strapi admin API.)
   // ---------------------------------------------------------------------
   let itemsTotalCents = 0;
+  const orderItemsData: { variantId: string; productName: string; quantity: number; unitPriceCents: number }[] = [];
   for (const item of body.items) {
     const variant = getVariant(item.variantId);
     const quantity = Math.round(item.quantity);
@@ -50,10 +52,34 @@ export async function POST(request: NextRequest) {
       );
     }
     itemsTotalCents += variant.priceCents * quantity;
+    orderItemsData.push({
+      variantId: variant.variantId,
+      productName: variant.name,
+      quantity,
+      unitPriceCents: variant.priceCents,
+    });
   }
 
   const orderNumber = `HB-${Date.now()}`;
   const totalPriceCents = itemsTotalCents + SHIPPING_CENTS;
+
+  // Přihlášený zákazník se k objednávce připojí rovnou (pro přehled
+  // objednávek na /ucet) - checkout ale funguje i bez přihlášení (guest).
+  const session = await auth();
+
+  const order = await prisma.order.create({
+    data: {
+      orderNumber,
+      customerEmail: session?.user?.email ?? 'zakaznik@example.com', // v reálu z checkout formuláře pro guesty
+      customerName: session?.user?.name ?? null,
+      userId: session?.user?.id ?? null,
+      totalPriceCents,
+      shippingMethod: body.shipping.method,
+      packetaBranchId: body.shipping.packetaBranchId,
+      packetaBranchName: body.shipping.packetaBranchName,
+      items: { create: orderItemsData },
+    },
+  });
 
   const merchant = process.env.COMGATE_MERCHANT_ID;
   const secret = process.env.COMGATE_SECRET;
@@ -61,8 +87,14 @@ export async function POST(request: NextRequest) {
 
   // Bez nastavených ComGate proměnných (např. v demo/preview nasazení bez
   // reálného merchant účtu) vrátíme mock redirect na lokální "díky" stránku,
-  // aby šel celý tok vyzkoušet i bez ostrých plateb.
+  // aby šel celý tok vyzkoušet i bez ostrých plateb. Demo objednávka nemá
+  // žádnou reálnou platbu, kterou by šlo ověřit webhookem, takže ji rovnou
+  // označíme jako zaplacenou.
   if (!merchant || !secret) {
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { status: 'PAID', paymentStatus: 'PAID' },
+    });
     return NextResponse.json({
       redirectUrl: `${siteUrl}/objednavka/dekujeme?demo=1&orderNumber=${orderNumber}`,
     });
@@ -84,7 +116,7 @@ export async function POST(request: NextRequest) {
       label: 'HoloBoard objednávka',
       refId: orderNumber, // interní číslo objednávky - použije se pro párování webhooku
       method: 'ALL',
-      email: 'zakaznik@example.com', // v reálu z formuláře/session
+      email: order.customerEmail,
       redirectUrl: `${siteUrl}/objednavka/dekujeme?orderNumber=${orderNumber}`,
       cancelUrl: `${siteUrl}/kosik?zruseno=1`,
     }),
@@ -98,14 +130,23 @@ export async function POST(request: NextRequest) {
   const code = params.get('code'); // "0" = OK
 
   if (code !== '0' || !redirectUrl) {
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { status: 'CANCELLED', paymentStatus: 'CANCELLED' },
+    });
     return NextResponse.json(
       { error: 'Založení platby u ComGate selhalo.', details: comgateText },
       { status: 502 }
     );
   }
 
-  // [TODO] Uložit transId + orderNumber k objednávce (Order.paymentTransactionId),
-  // aby ho šlo spárovat ve webhooku - viz app/api/webhooks/comgate/route.ts.
+  // transId se uloží k objednávce, aby ho šlo spárovat ve webhooku
+  // (app/api/webhooks/comgate/route.ts) - status zůstává PENDING, dokud
+  // ho webhook po ověření u ComGate nepřepne na PAID.
+  await prisma.order.update({
+    where: { id: order.id },
+    data: { paymentTransactionId: transId },
+  });
 
   return NextResponse.json({ redirectUrl, transId, orderNumber });
 }

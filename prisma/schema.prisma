@@ -27,6 +27,8 @@ model User {
   passwordHash String
   name         String?
 
+  orders Order[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -106,7 +108,6 @@ model ProductVariant {
   optionValues VariantOptionValue[]
 
   inventory Inventory?
-  orderItems OrderItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -142,6 +143,10 @@ model Order {
   orderNumber  String @unique              // "HB-2026-000123", zobrazuje se zákazníkovi
   customerEmail String
   customerName  String?
+
+  // Nepovinné - objednávka jde založit i bez přihlášení (guest checkout).
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
 
   status OrderStatus @default(PENDING)
 
@@ -189,9 +194,11 @@ model OrderItem {
   orderId   String
   order     Order  @relation(fields: [orderId], references: [id])
 
-  variantId String
-  variant   ProductVariant @relation(fields: [variantId], references: [id])
-
+  // Katalog zatím žije v lib/catalog.ts (ne v tabulce ProductVariant výše),
+  // proto se sem místo cizího klíče ukládá "snapshot" - variantId jen jako
+  // volný identifikátor a název/cena zkopírované v čase objednání.
+  variantId   String
+  productName String
   quantity       Int
   // Cena v čase objednání - NIKDY nečíst aktuální cenu produktu zpětně,
   // ceny se v čase mění a historická objednávka musí zůstat neměnná.
