@@ -27,10 +27,31 @@ model User {
   passwordHash String
   name         String?
 
-  orders Order[]
+  orders    Order[]
+  cartItems CartItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Košík přihlášeného zákazníka - uložený na účtu, aby po odhlášení a
+// opětovném přihlášení (i na jiném zařízení) zůstal zachovaný. Nepřihlášení
+// návštěvníci mají košík jen v localStorage prohlížeče (viz CartContext.tsx).
+model CartItem {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Stejný "snapshot" přístup jako u OrderItem - katalog zatím žije
+  // v lib/catalog.ts, ne v tabulce ProductVariant.
+  variantId      String
+  productName    String
+  unitPriceCents Int
+  quantity       Int
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, variantId])
 }
 
 // -----------------------------------------------------------------------

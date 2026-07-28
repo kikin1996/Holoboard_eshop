@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import Link from 'next/link';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Minus, Plus, Check, ShoppingBag } from 'lucide-react';
 import { useCart } from '@/components/CartContext';
 import type { ProductVariant } from '@/lib/catalog';
@@ -14,6 +15,7 @@ export default function AddToCart({ variant }: { variant: ProductVariant }) {
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
+  const [addedQuantity, setAddedQuantity] = useState(1);
   const [emailCopied, setEmailCopied] = useState(false);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -59,6 +61,7 @@ export default function AddToCart({ variant }: { variant: ProductVariant }) {
       },
       quantity
     );
+    setAddedQuantity(quantity);
     setJustAdded(true);
     if (resetTimer.current) clearTimeout(resetTimer.current);
     resetTimer.current = setTimeout(() => setJustAdded(false), 4000);
@@ -122,17 +125,38 @@ export default function AddToCart({ variant }: { variant: ProductVariant }) {
         </p>
       )}
 
-      {justAdded && (
-        <p className="mt-4 text-sm text-muted" role="status">
-          Produkt je v košíku.{' '}
-          <Link
-            href="/kosik"
-            className="font-medium text-accent underline underline-offset-4"
-          >
-            Přejít k pokladně →
-          </Link>
-        </p>
-      )}
+      {/* Velké, nepřehlédnutelné potvrzení přidání do košíku - fixní pozice,
+          ať ho zákazník uvidí i po scrollu pryč od tlačítka. */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
+        <AnimatePresence>
+          {justAdded && (
+            <motion.div
+              initial={{ opacity: 0, y: 24, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.95 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              role="status"
+              className="pointer-events-auto flex items-center gap-4 rounded-2xl bg-ink px-6 py-4 text-white shadow-2xl"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent">
+                <Check size={20} strokeWidth={3} />
+              </span>
+              <div>
+                <p className="text-base font-semibold">Přidáno do košíku</p>
+                <p className="text-sm text-white/70">
+                  {addedQuantity}× {variant.name}
+                </p>
+              </div>
+              <Link
+                href="/kosik"
+                className="ml-2 shrink-0 whitespace-nowrap rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-white/90"
+              >
+                Košík →
+              </Link>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

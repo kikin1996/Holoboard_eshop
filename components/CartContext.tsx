@@ -7,6 +7,12 @@
 // zrcadlí do localStorage, takže košík přežije reload i zavření záložky.
 // V reálném provozu by se sem místo localStorage synchronizoval Medusa cart
 // podle ID v cookie - API komponent (useCart) by zůstalo stejné.
+//
+// Přihlášený zákazník má košík navíc uložený na účtu (viz /api/cart +
+// Prisma model CartItem): při přihlášení se odsud dotáhne a při každé
+// změně se tam zase uloží, takže po odhlášení a novém přihlášení (i na
+// jiném zařízení) zůstane zachovaný. LocalStorage zůstává jen jako
+// rychlá klientská kopie/fallback pro nepřihlášené návštěvníky.
 // =============================================================================
 
 import {
@@ -14,9 +20,11 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
+import { useSession } from 'next-auth/react';
 
 export interface CartItem {
   variantId: string;
@@ -48,6 +56,11 @@ function clampQuantity(quantity: number): number {
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isHydrated, setIsHydrated] = useState(false);
+  const { status } = useSession();
+  // Hlídá, jestli už proběhlo načtení uloženého košíku z účtu pro AKTUÁLNÍ
+  // přihlášení - reset na false při odhlášení, ať se při dalším přihlášení
+  // (třeba jiného účtu) načte znovu.
+  const hasLoadedAccountCart = useRef(false);
 
   // Načtení uloženého košíku - jen na klientovi, po mountu.
   useEffect(() => {
@@ -72,6 +85,44 @@ export function CartProvider({ children }: { children: ReactNode }) {
       // localStorage může být plné/zakázané - košík pak žije jen v paměti.
     }
   }, [items, isHydrated]);
+
+  // Po přihlášení načteme košík uložený na účtu. Pokud na účtu něco je,
+  // nahradí to, co bylo lokálně (typicky prázdný košík po předchozím
+  // odhlášení); pokud je účet prázdný, necháme klidně to, co si zákazník
+  // stihl přidat ještě jako nepřihlášený - to se pak uloží zpět na účet.
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      hasLoadedAccountCart.current = false;
+      return;
+    }
+    if (status !== 'authenticated' || hasLoadedAccountCart.current || !isHydrated) return;
+
+    hasLoadedAccountCart.current = true;
+    (async () => {
+      try {
+        const response = await fetch('/api/cart');
+        const data = (await response.json()) as { items?: CartItem[] };
+        if (data.items && data.items.length > 0) {
+          setItems(data.items);
+        }
+      } catch {
+        // Načtení košíku z účtu je jen "best effort" - localStorage zůstává fallback.
+      }
+    })();
+  }, [status, isHydrated]);
+
+  // Dokud je zákazník přihlášený, každá změna košíku se zrcadlí i na účet,
+  // aby přežila odhlášení/nové přihlášení (i na jiném zařízení).
+  useEffect(() => {
+    if (status !== 'authenticated' || !isHydrated || !hasLoadedAccountCart.current) return;
+    fetch('/api/cart', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items }),
+    }).catch(() => {
+      // Uložení na účet je "best effort" - localStorage zůstává fallback.
+    });
+  }, [items, isHydrated, status]);
 
   const value = useMemo<CartContextValue>(
     () => ({
