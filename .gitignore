@@ -5,3 +5,8 @@ out/
 .env*.local
 .vercel
 *.log
+*.tsbuildinfo
+
+# Lokální SQLite databáze (obsahuje účty/hashe hesel) - nikdy do repa
+prisma/*.db
+prisma/*.db-journal

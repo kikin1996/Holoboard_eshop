@@ -6,19 +6,39 @@ import { Minus, Plus, Check, ShoppingBag } from 'lucide-react';
 import { useCart } from '@/components/CartContext';
 import type { ProductVariant } from '@/lib/catalog';
 
+const CONTACT_EMAIL = 'info@holoboard.cz';
+
 // Nákupní blok produktové stránky: stepper množství + "Do košíku".
 // Po přidání se na pár vteřin ukáže potvrzení a odkaz do košíku.
 export default function AddToCart({ variant }: { variant: ProductVariant }) {
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
+  const [emailCopied, setEmailCopied] = useState(false);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
       if (resetTimer.current) clearTimeout(resetTimer.current);
+      if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
     };
   }, []);
+
+  // "mailto:" nic neudělá viditelně, pokud návštěvník nemá v systému
+  // nastavený výchozí e-mailový klient - proto adresu navíc zkopírujeme
+  // do schránky a zobrazíme potvrzení, ať tlačítko vždy k něčemu vede.
+  const handleAskClick = async () => {
+    try {
+      await navigator.clipboard.writeText(CONTACT_EMAIL);
+      setEmailCopied(true);
+      if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
+      copyResetTimer.current = setTimeout(() => setEmailCopied(false), 4000);
+    } catch {
+      // Clipboard API nemusí být dostupné (starší prohlížeč, zakázaná
+      // oprávnění) - mailto odkaz i tak proběhne dál.
+    }
+  };
 
   const handleAdd = () => {
     addItem(
@@ -74,12 +94,19 @@ export default function AddToCart({ variant }: { variant: ProductVariant }) {
         </button>
 
         <a
-          href="mailto:info@holoboard.cz"
+          href={`mailto:${CONTACT_EMAIL}`}
+          onClick={handleAskClick}
           className="rounded-full border border-line px-8 py-4 text-sm font-medium text-ink transition-colors hover:bg-mist"
         >
           Zeptat se
         </a>
       </div>
+
+      {emailCopied && (
+        <p className="mt-4 text-sm text-muted" role="status">
+          E-mail {CONTACT_EMAIL} zkopírován do schránky.
+        </p>
+      )}
 
       {justAdded && (
         <p className="mt-4 text-sm text-muted" role="status">

@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Menu, X, ShoppingBag } from 'lucide-react';
+import { Menu, X, ShoppingBag, User } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { useCart } from '@/components/CartContext';
 
 // Navigace: "prosklená" lišta fixní nahoře. Na desktopu odkazy + košík
@@ -18,6 +19,7 @@ const links = [
 
 export default function Navbar() {
   const { count, isHydrated } = useCart();
+  const { data: session, status } = useSession();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
@@ -47,6 +49,17 @@ export default function Navbar() {
         </nav>
 
         <div className="flex items-center gap-3">
+          {status !== 'loading' && (
+            <Link
+              href={session ? '/ucet' : '/prihlaseni'}
+              className="hidden items-center gap-1.5 text-sm text-muted transition-colors hover:text-ink md:flex"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <User size={16} strokeWidth={2} />
+              {session ? session.user?.name ?? 'Můj účet' : 'Přihlásit se'}
+            </Link>
+          )}
+
           <Link
             href="/kosik"
             className="relative flex items-center gap-2 rounded-full bg-accent px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-dark"
@@ -88,6 +101,17 @@ export default function Navbar() {
                 </Link>
               </li>
             ))}
+            {status !== 'loading' && (
+              <li>
+                <Link
+                  href={session ? '/ucet' : '/prihlaseni'}
+                  onClick={() => setIsMenuOpen(false)}
+                  className="block rounded-2xl px-4 py-3 text-ink transition-colors hover:bg-mist"
+                >
+                  {session ? session.user?.name ?? 'Můj účet' : 'Přihlásit se'}
+                </Link>
+              </li>
+            )}
           </ul>
         </nav>
       )}
