@@ -79,6 +79,18 @@ export async function POST(request: NextRequest) {
   const orderNumber = `HB-${Date.now()}`;
   const totalPriceCents = itemsTotalCents + SHIPPING_CENTS;
 
+  // Přihlášenému zákazníkovi rovnou uložíme vybrané výdejní místo na profil,
+  // ať se mu příště v checkoutu samo předvyplní (viz Cart.tsx a ProfileForm.tsx).
+  if (session?.user) {
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        savedPacketaBranchId: body.shipping.packetaBranchId,
+        savedPacketaBranchName: body.shipping.packetaBranchName,
+      },
+    });
+  }
+
   // Přihlášený zákazník se k objednávce připojí rovnou (pro přehled
   // objednávek na /ucet) - checkout ale funguje i bez přihlášení (guest).
   const order = await prisma.order.create({

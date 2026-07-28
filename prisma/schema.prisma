@@ -26,6 +26,14 @@ model User {
   email        String   @unique
   passwordHash String
   name         String?
+  phone        String?
+
+  // Naposledy použité/vybrané výdejní místo Zásilkovny - předvyplní se
+  // při dalším checkoutu (viz Cart.tsx), aby ho zákazník nemusel vybírat
+  // pokaždé znovu. Aktualizuje se automaticky po každé objednávce a dá se
+  // nastavit i ručně na stránce účtu (viz ProfileForm.tsx).
+  savedPacketaBranchId   String?
+  savedPacketaBranchName String?
 
   orders    Order[]
   cartItems CartItem[]

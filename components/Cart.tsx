@@ -18,39 +18,14 @@
 //      v této komponentě vůbec neobjevuje - je jen na serveru.
 // =============================================================================
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Script from 'next/script';
 import { useSession } from 'next-auth/react';
 import { Minus, Plus, Trash2, ShoppingBag, MapPin, Mail } from 'lucide-react';
 import { useCart } from '@/components/CartContext';
 import { SHIPPING_CENTS, formatPrice } from '@/lib/catalog';
-
-// Tvar objektu, který vrací Packeta Widget po výběru pobočky/Z-BOXu.
-// (id a name jsou jediná pole, která si ukládáme do objednávky - viz schéma.)
-interface PacketaPoint {
-  id: string;
-  name: string;
-  city?: string;
-  street?: string;
-  zip?: string;
-}
-
-// Deklarace globálního objektu, který do window vloží knihovna
-// https://widget.packeta.com/v6/www/js/library.js (načtená přes next/script níže).
-declare global {
-  interface Window {
-    Packeta?: {
-      Widget: {
-        pick: (
-          apiKey: string,
-          callback: (point: PacketaPoint | null) => void,
-          options?: Record<string, unknown>
-        ) => void;
-      };
-    };
-  }
-}
+import type { PacketaPoint } from '@/lib/packeta';
 
 interface CartProps {
   /** true, když se zákazník vrátil z ComGate bez dokončení platby (?zruseno=1). */
@@ -65,12 +40,37 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
   const [isWidgetReady, setIsWidgetReady] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const hasPrefilledPoint = useRef(false);
 
   // Přihlášený zákazník e-mail nevyplňuje - objednávka se stejně napojí
   // na jeho účet a notifikace o stavu chodí na e-mail z profilu.
   useEffect(() => {
     if (session?.user?.email) setEmail(session.user.email);
   }, [session?.user?.email]);
+
+  // Předvyplnění naposledy použitého výdejního místa z profilu (viz
+  // ProfileForm.tsx / /api/profile) - zákazník ho pořád může tlačítkem změnit.
+  useEffect(() => {
+    if (!session?.user || hasPrefilledPoint.current) return;
+    hasPrefilledPoint.current = true;
+    (async () => {
+      try {
+        const response = await fetch('/api/profile');
+        const data = (await response.json()) as {
+          savedPacketaBranchId?: string | null;
+          savedPacketaBranchName?: string | null;
+        };
+        if (data.savedPacketaBranchId) {
+          setSelectedPoint({
+            id: data.savedPacketaBranchId,
+            name: data.savedPacketaBranchName ?? data.savedPacketaBranchId,
+          });
+        }
+      } catch {
+        // Předvyplnění je jen "best effort" - zákazník si místo klidně vybere ručně.
+      }
+    })();
+  }, [session?.user]);
 
   const isEmailValid = /^\S+@\S+\.\S+$/.test(email);
 

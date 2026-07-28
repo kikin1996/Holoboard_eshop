@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { formatPrice } from '@/lib/catalog';
 import LogoutButton from '@/components/LogoutButton';
+import ProfileForm from '@/components/ProfileForm';
 
 export const metadata: Metadata = {
   title: 'Můj účet',
@@ -26,11 +27,17 @@ export default async function AccountPage() {
     redirect('/prihlaseni?callbackUrl=/ucet');
   }
 
-  const orders = await prisma.order.findMany({
-    where: { userId: session.user.id },
-    orderBy: { createdAt: 'desc' },
-    include: { items: true },
-  });
+  const [orders, profile] = await Promise.all([
+    prisma.order.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: 'desc' },
+      include: { items: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { phone: true, savedPacketaBranchId: true, savedPacketaBranchName: true },
+    }),
+  ]);
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
@@ -43,6 +50,14 @@ export default async function AccountPage() {
 
       <div className="mt-6">
         <LogoutButton />
+      </div>
+
+      <div className="mt-8">
+        <ProfileForm
+          initialPhone={profile?.phone ?? ''}
+          initialPacketaBranchId={profile?.savedPacketaBranchId ?? null}
+          initialPacketaBranchName={profile?.savedPacketaBranchName ?? null}
+        />
       </div>
 
       <section className="mt-12">
