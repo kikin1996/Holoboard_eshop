@@ -25,7 +25,7 @@ interface CheckoutRequestBody {
   phone?: string;
   shipping:
     | { method: 'PACKETA_ZBOX'; packetaBranchId: string; packetaBranchName: string }
-    | { method: 'PACKETA_HOME'; street: string; city: string; zipCode: string };
+    | { method: 'PACKETA_HOME' | 'COURIER'; street: string; city: string; zipCode: string };
 }
 
 export async function POST(request: NextRequest) {
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
   const hasValidShipping =
     shipping?.method === 'PACKETA_ZBOX'
       ? Boolean(shipping.packetaBranchId)
-      : shipping?.method === 'PACKETA_HOME'
+      : shipping?.method === 'PACKETA_HOME' || shipping?.method === 'COURIER'
         ? Boolean(shipping.street?.trim() && shipping.city?.trim() && shipping.zipCode?.trim())
         : false;
 
@@ -177,7 +177,14 @@ export async function POST(request: NextRequest) {
         {
           price_data: {
             currency: 'czk',
-            product_data: { name: 'Doprava (Zásilkovna)' },
+            product_data: {
+              name:
+                shipping.method === 'PACKETA_ZBOX'
+                  ? 'Doprava (výdejní místo Zásilkovna)'
+                  : shipping.method === 'PACKETA_HOME'
+                    ? 'Doprava (Zásilkovna domů)'
+                    : 'Doprava (PPL domů)',
+            },
             unit_amount: SHIPPING_CENTS,
           },
           quantity: 1,

@@ -35,7 +35,7 @@ interface CartProps {
 export default function Cart({ paymentCancelled = false }: CartProps) {
   const { items, isHydrated, updateQuantity, removeItem } = useCart();
   const { data: session } = useSession();
-  const [shippingMethod, setShippingMethod] = useState<'PACKETA_ZBOX' | 'PACKETA_HOME'>('PACKETA_ZBOX');
+  const [shippingMethod, setShippingMethod] = useState<'PACKETA_ZBOX' | 'PACKETA_HOME' | 'COURIER'>('PACKETA_ZBOX');
   const [selectedPoint, setSelectedPoint] = useState<PacketaPoint | null>(null);
   const [street, setStreet] = useState('');
   const [city, setCity] = useState('');
@@ -165,7 +165,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
       setErrorMessage('Nejdřív prosím vyberte výdejní místo Zásilkovny.');
       return;
     }
-    if (shippingMethod === 'PACKETA_HOME' && !isAddressValid) {
+    if (shippingMethod !== 'PACKETA_ZBOX' && !isAddressValid) {
       setErrorMessage('Vyplňte prosím celou doručovací adresu.');
       return;
     }
@@ -202,7 +202,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
                   packetaBranchName: selectedPoint!.name,
                 }
               : {
-                  method: 'PACKETA_HOME',
+                  method: shippingMethod,
                   street,
                   city,
                   zipCode,
@@ -349,7 +349,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
               <span className="text-ink">{formatPrice(subtotalCents)}</span>
             </div>
             <div className="flex justify-between text-muted">
-              <span>Doprava (Zásilkovna)</span>
+              <span>Doprava</span>
               <span className="text-ink">
                 {hasShipping ? formatPrice(shippingCents) : '—'}
               </span>
@@ -362,8 +362,12 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
 
           {/* --- Jméno a e-mail pro potvrzení a notifikace o stavu objednávky --- */}
           <div className="mt-6 rounded-3xl border border-line p-6">
+            <p className="mb-4 text-xs text-muted">
+              <span className="text-red-500">*</span> Povinné údaje
+            </p>
+
             <label htmlFor="checkout-name" className="text-sm font-medium text-ink">
-              Jméno a příjmení
+              Jméno a příjmení <span className="text-red-500">*</span>
             </label>
             <input
               id="checkout-name"
@@ -379,7 +383,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
 
             <label htmlFor="checkout-email" className="mt-4 flex items-center gap-2 text-sm font-medium text-ink">
               <Mail size={15} strokeWidth={2} />
-              E-mail
+              E-mail <span className="text-red-500">*</span>
             </label>
             <input
               id="checkout-email"
@@ -398,7 +402,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
 
             <label htmlFor="checkout-phone" className="mt-4 flex items-center gap-2 text-sm font-medium text-ink">
               <Phone size={15} strokeWidth={2} />
-              Telefon
+              Telefon <span className="text-red-500">*</span>
             </label>
             <input
               id="checkout-phone"
@@ -415,11 +419,11 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
 
           {/* --- Výběr dopravy --- */}
           <div className="mt-6 rounded-3xl border border-line p-6">
-            <div className="flex gap-2 rounded-full bg-mist p-1">
+            <div className="grid grid-cols-3 gap-2 rounded-full bg-mist p-1">
               <button
                 type="button"
                 onClick={() => setShippingMethod('PACKETA_ZBOX')}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-colors ${
+                className={`flex items-center justify-center gap-1.5 rounded-full px-3 py-2.5 text-sm font-medium transition-colors ${
                   shippingMethod === 'PACKETA_ZBOX'
                     ? 'bg-white text-ink shadow-sm'
                     : 'text-muted hover:text-ink'
@@ -431,14 +435,26 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
               <button
                 type="button"
                 onClick={() => setShippingMethod('PACKETA_HOME')}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-colors ${
+                className={`flex items-center justify-center gap-1.5 rounded-full px-3 py-2.5 text-sm font-medium transition-colors ${
                   shippingMethod === 'PACKETA_HOME'
                     ? 'bg-white text-ink shadow-sm'
                     : 'text-muted hover:text-ink'
                 }`}
               >
                 <Home size={15} strokeWidth={2} />
-                Doručení domů
+                Zásilkovna domů
+              </button>
+              <button
+                type="button"
+                onClick={() => setShippingMethod('COURIER')}
+                className={`flex items-center justify-center gap-1.5 rounded-full px-3 py-2.5 text-sm font-medium transition-colors ${
+                  shippingMethod === 'COURIER'
+                    ? 'bg-white text-ink shadow-sm'
+                    : 'text-muted hover:text-ink'
+                }`}
+              >
+                <Home size={15} strokeWidth={2} />
+                PPL domů
               </button>
             </div>
 
@@ -467,34 +483,43 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
                 )}
               </div>
             ) : (
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <input
-                  type="text"
-                  value={street}
-                  onChange={(e) => setStreet(e.target.value)}
-                  placeholder="Ulice a č.p."
-                  aria-label="Ulice a číslo popisné"
-                  autoComplete="street-address"
-                  className="rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent sm:col-span-2"
-                />
-                <input
-                  type="text"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="Město"
-                  aria-label="Město"
-                  autoComplete="address-level2"
-                  className="rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent"
-                />
-                <input
-                  type="text"
-                  value={zipCode}
-                  onChange={(e) => setZipCode(e.target.value)}
-                  placeholder="PSČ"
-                  aria-label="PSČ"
-                  autoComplete="postal-code"
-                  className="rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent"
-                />
+              <div className="mt-5">
+                <p className="mb-3 text-sm text-muted">
+                  Doručení přes{' '}
+                  <strong className="text-ink">
+                    {shippingMethod === 'PACKETA_HOME' ? 'Zásilkovnu' : 'PPL'}
+                  </strong>{' '}
+                  na adresu:
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <input
+                    type="text"
+                    value={street}
+                    onChange={(e) => setStreet(e.target.value)}
+                    placeholder="Ulice a č.p."
+                    aria-label="Ulice a číslo popisné"
+                    autoComplete="street-address"
+                    className="rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent sm:col-span-2"
+                  />
+                  <input
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Město"
+                    aria-label="Město"
+                    autoComplete="address-level2"
+                    className="rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent"
+                  />
+                  <input
+                    type="text"
+                    value={zipCode}
+                    onChange={(e) => setZipCode(e.target.value)}
+                    placeholder="PSČ"
+                    aria-label="PSČ"
+                    autoComplete="postal-code"
+                    className="rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent"
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -519,10 +544,10 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
                 <dt className="text-muted">Doručení</dt>
                 <dd className="text-right text-ink">
                   {shippingMethod === 'PACKETA_ZBOX'
-                    ? selectedPoint?.name ?? 'nevybráno'
-                    : isAddressValid
-                      ? `${street}, ${city}, ${zipCode}`
-                      : 'nevyplněno'}
+                    ? (selectedPoint?.name ?? 'nevybráno')
+                    : !isAddressValid
+                      ? 'nevyplněno'
+                      : `${shippingMethod === 'PACKETA_HOME' ? 'Zásilkovna' : 'PPL'}: ${street}, ${city}, ${zipCode}`}
                 </dd>
               </div>
               <div className="flex justify-between gap-4 border-t border-line pt-1.5 font-medium">

@@ -104,7 +104,7 @@ export default async function AccountPage() {
                 <p className="mt-3 border-t border-line pt-3 text-sm text-muted">
                   {order.shippingMethod === 'PACKETA_ZBOX'
                     ? `Výdejní místo: ${order.packetaBranchName ?? '—'}`
-                    : `Doručení domů: ${[order.shippingStreet, order.shippingCity, order.shippingZip].filter(Boolean).join(', ')}`}
+                    : `Doručení domů (${order.shippingMethod === 'PACKETA_HOME' ? 'Zásilkovna' : 'PPL'}): ${[order.shippingStreet, order.shippingCity, order.shippingZip].filter(Boolean).join(', ')}`}
                 </p>
               </li>
             ))}
