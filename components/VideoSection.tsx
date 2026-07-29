@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import BackgroundBlobs from '@/components/BackgroundBlobs';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -29,7 +30,8 @@ const videos = [
 // kampaň na Hithit.cz), embedované YouTube video pro každý prototyp.
 export default function VideoSection() {
   return (
-    <section id="video">
+    <section id="video" className="relative overflow-hidden">
+      <BackgroundBlobs />
       <div className="mx-auto max-w-6xl px-6 py-28 md:py-36">
         <motion.div
           initial={{ opacity: 0, y: 24 }}

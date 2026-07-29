@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
+import BackgroundBlobs from '@/components/BackgroundBlobs';
 
 // Křivka a časování odpovídají DESIGN.md - jemný "ease-out-expo" pocit,
 // žádné rychlé/agresivní animace.
@@ -10,8 +11,9 @@ const EASE = [0.16, 1, 0.3, 1] as const;
 
 export default function Hero() {
   return (
-    <section className="mx-auto max-w-6xl px-6 pb-20 pt-20 md:pb-32 md:pt-28">
-      <div className="grid items-center gap-12 md:grid-cols-2 md:gap-8">
+    <section className="relative overflow-hidden px-6 pb-20 pt-20 md:pb-32 md:pt-28">
+      <BackgroundBlobs />
+      <div className="mx-auto grid max-w-6xl items-center gap-12 md:grid-cols-2 md:gap-8">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
