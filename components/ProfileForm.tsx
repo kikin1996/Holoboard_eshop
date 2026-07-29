@@ -15,16 +15,25 @@ import type { PacketaPoint } from '@/lib/packeta';
 
 interface ProfileFormProps {
   initialPhone: string;
+  initialStreet: string;
+  initialCity: string;
+  initialZipCode: string;
   initialPacketaBranchId: string | null;
   initialPacketaBranchName: string | null;
 }
 
 export default function ProfileForm({
   initialPhone,
+  initialStreet,
+  initialCity,
+  initialZipCode,
   initialPacketaBranchId,
   initialPacketaBranchName,
 }: ProfileFormProps) {
   const [phone, setPhone] = useState(initialPhone);
+  const [street, setStreet] = useState(initialStreet);
+  const [city, setCity] = useState(initialCity);
+  const [zipCode, setZipCode] = useState(initialZipCode);
   const [selectedPoint, setSelectedPoint] = useState<PacketaPoint | null>(
     initialPacketaBranchId
       ? { id: initialPacketaBranchId, name: initialPacketaBranchName ?? initialPacketaBranchId }
@@ -53,6 +62,9 @@ export default function ProfileForm({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone,
+          street,
+          city,
+          zipCode,
           packetaBranchId: selectedPoint?.id ?? null,
           packetaBranchName: selectedPoint?.name ?? null,
         }),
@@ -105,6 +117,41 @@ export default function ProfileForm({
             Vybraná pobočka: <strong className="text-ink">{selectedPoint.name}</strong>
           </p>
         )}
+      </div>
+
+      <div className="mt-6 border-t border-line pt-5">
+        <p className="text-sm font-medium text-ink">Adresa pro doručení domů</p>
+        <p className="mt-1 text-xs text-muted">
+          Nepovinné - použije se, jen když si u objednávky vyberete doručení
+          na adresu místo výdejního místa.
+        </p>
+
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <input
+            type="text"
+            value={street}
+            onChange={(e) => setStreet(e.target.value)}
+            placeholder="Ulice a č.p."
+            aria-label="Ulice a číslo popisné"
+            className="rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent sm:col-span-2"
+          />
+          <input
+            type="text"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            placeholder="Město"
+            aria-label="Město"
+            className="rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent"
+          />
+          <input
+            type="text"
+            value={zipCode}
+            onChange={(e) => setZipCode(e.target.value)}
+            placeholder="PSČ"
+            aria-label="PSČ"
+            className="rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent"
+          />
+        </div>
       </div>
 
       <button

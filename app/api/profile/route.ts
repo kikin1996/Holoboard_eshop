@@ -10,11 +10,21 @@ export async function GET() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { phone: true, savedPacketaBranchId: true, savedPacketaBranchName: true },
+    select: {
+      phone: true,
+      street: true,
+      city: true,
+      zipCode: true,
+      savedPacketaBranchId: true,
+      savedPacketaBranchName: true,
+    },
   });
 
   return NextResponse.json({
     phone: user?.phone ?? '',
+    street: user?.street ?? '',
+    city: user?.city ?? '',
+    zipCode: user?.zipCode ?? '',
     savedPacketaBranchId: user?.savedPacketaBranchId ?? null,
     savedPacketaBranchName: user?.savedPacketaBranchName ?? null,
   });
@@ -22,6 +32,9 @@ export async function GET() {
 
 interface ProfilePatchBody {
   phone?: string;
+  street?: string;
+  city?: string;
+  zipCode?: string;
   packetaBranchId?: string | null;
   packetaBranchName?: string | null;
 }
@@ -38,6 +51,9 @@ export async function PATCH(request: Request) {
     where: { id: session.user.id },
     data: {
       ...(body.phone !== undefined && { phone: body.phone.trim() || null }),
+      ...(body.street !== undefined && { street: body.street.trim() || null }),
+      ...(body.city !== undefined && { city: body.city.trim() || null }),
+      ...(body.zipCode !== undefined && { zipCode: body.zipCode.trim() || null }),
       ...(body.packetaBranchId !== undefined && {
         savedPacketaBranchId: body.packetaBranchId,
         savedPacketaBranchName: body.packetaBranchName ?? null,

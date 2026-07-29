@@ -28,6 +28,12 @@ model User {
   name         String?
   phone        String?
 
+  // Adresa pro doručení domů (ShippingMethod.PACKETA_HOME) - předvyplní se
+  // v checkoutu stejně jako výdejní místo, viz Order.shippingStreet apod.
+  street  String?
+  city    String?
+  zipCode String?
+
   // Naposledy použité/vybrané výdejní místo Zásilkovny - předvyplní se
   // při dalším checkoutu (viz Cart.tsx), aby ho zákazník nemusel vybírat
   // pokaždé znovu. Aktualizuje se automaticky po každé objednávce a dá se
@@ -186,8 +192,13 @@ model Order {
 
   // --- Doprava (Zásilkovna / Packeta) ---
   shippingMethod    ShippingMethod
-  packetaBranchId   String?   // ID Z-BOXu / pobočky vrácené Packeta Widgetem (point.id)
-  packetaBranchName String?   // Lidsky čitelný název/adresa pobočky (point.name)
+  packetaBranchId   String?   // ID Z-BOXu / pobočky vrácené Packeta Widgetem (point.id) - jen PACKETA_ZBOX
+  packetaBranchName String?   // Lidsky čitelný název/adresa pobočky (point.name) - jen PACKETA_ZBOX
+
+  // Adresa pro doručení domů - jen PACKETA_HOME
+  shippingStreet String?
+  shippingCity   String?
+  shippingZip    String?
 
   // --- Platba (ComGate) ---
   paymentProvider     String  @default("comgate")

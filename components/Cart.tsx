@@ -22,7 +22,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Script from 'next/script';
 import { useSession } from 'next-auth/react';
-import { Minus, Plus, Trash2, ShoppingBag, MapPin, Mail } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingBag, MapPin, Mail, Home } from 'lucide-react';
 import { useCart } from '@/components/CartContext';
 import { SHIPPING_CENTS, formatPrice } from '@/lib/catalog';
 import type { PacketaPoint } from '@/lib/packeta';
@@ -35,12 +35,16 @@ interface CartProps {
 export default function Cart({ paymentCancelled = false }: CartProps) {
   const { items, isHydrated, updateQuantity, removeItem } = useCart();
   const { data: session } = useSession();
+  const [shippingMethod, setShippingMethod] = useState<'PACKETA_ZBOX' | 'PACKETA_HOME'>('PACKETA_ZBOX');
   const [selectedPoint, setSelectedPoint] = useState<PacketaPoint | null>(null);
+  const [street, setStreet] = useState('');
+  const [city, setCity] = useState('');
+  const [zipCode, setZipCode] = useState('');
   const [email, setEmail] = useState('');
   const [isWidgetReady, setIsWidgetReady] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const hasPrefilledPoint = useRef(false);
+  const hasPrefilledShipping = useRef(false);
 
   // Přihlášený zákazník e-mail nevyplňuje - objednávka se stejně napojí
   // na jeho účet a notifikace o stavu chodí na e-mail z profilu.
@@ -48,15 +52,18 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
     if (session?.user?.email) setEmail(session.user.email);
   }, [session?.user?.email]);
 
-  // Předvyplnění naposledy použitého výdejního místa z profilu (viz
-  // ProfileForm.tsx / /api/profile) - zákazník ho pořád může tlačítkem změnit.
+  // Předvyplnění doručovacích údajů z profilu (viz ProfileForm.tsx /
+  // /api/profile) - zákazník si je pořád může kdykoliv změnit.
   useEffect(() => {
-    if (!session?.user || hasPrefilledPoint.current) return;
-    hasPrefilledPoint.current = true;
+    if (!session?.user || hasPrefilledShipping.current) return;
+    hasPrefilledShipping.current = true;
     (async () => {
       try {
         const response = await fetch('/api/profile');
         const data = (await response.json()) as {
+          street?: string;
+          city?: string;
+          zipCode?: string;
           savedPacketaBranchId?: string | null;
           savedPacketaBranchName?: string | null;
         };
@@ -66,13 +73,18 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
             name: data.savedPacketaBranchName ?? data.savedPacketaBranchId,
           });
         }
+        if (data.street) setStreet(data.street);
+        if (data.city) setCity(data.city);
+        if (data.zipCode) setZipCode(data.zipCode);
       } catch {
-        // Předvyplnění je jen "best effort" - zákazník si místo klidně vybere ručně.
+        // Předvyplnění je jen "best effort" - zákazník si údaje klidně vyplní ručně.
       }
     })();
   }, [session?.user]);
 
   const isEmailValid = /^\S+@\S+\.\S+$/.test(email);
+  const isAddressValid = street.trim() !== '' && city.trim() !== '' && zipCode.trim() !== '';
+  const hasShipping = shippingMethod === 'PACKETA_ZBOX' ? Boolean(selectedPoint) : isAddressValid;
 
   // --- Kalkulace ceny (čistě klientský výpočet pro zobrazení; finální
   //     autoritativní cena se vždy přepočítá znovu na serveru v /api/checkout) ---
@@ -80,7 +92,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
     (sum, item) => sum + item.unitPriceCents * item.quantity,
     0
   );
-  const shippingCents = selectedPoint ? SHIPPING_CENTS : 0;
+  const shippingCents = hasShipping ? SHIPPING_CENTS : 0;
   const totalCents = subtotalCents + shippingCents;
 
   // ---------------------------------------------------------------------
@@ -132,8 +144,12 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
       setErrorMessage('Zadejte prosím platný e-mail pro potvrzení objednávky.');
       return;
     }
-    if (!selectedPoint) {
+    if (shippingMethod === 'PACKETA_ZBOX' && !selectedPoint) {
       setErrorMessage('Nejdřív prosím vyberte výdejní místo Zásilkovny.');
+      return;
+    }
+    if (shippingMethod === 'PACKETA_HOME' && !isAddressValid) {
+      setErrorMessage('Vyplňte prosím celou doručovací adresu.');
       return;
     }
     if (items.length === 0) {
@@ -155,11 +171,19 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
             quantity: item.quantity,
           })),
           email,
-          shipping: {
-            method: 'PACKETA_ZBOX',
-            packetaBranchId: selectedPoint.id,
-            packetaBranchName: selectedPoint.name,
-          },
+          shipping:
+            shippingMethod === 'PACKETA_ZBOX'
+              ? {
+                  method: 'PACKETA_ZBOX',
+                  packetaBranchId: selectedPoint!.id,
+                  packetaBranchName: selectedPoint!.name,
+                }
+              : {
+                  method: 'PACKETA_HOME',
+                  street,
+                  city,
+                  zipCode,
+                },
         }),
       });
 
@@ -180,7 +204,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
       setErrorMessage('Nepodařilo se zahájit platbu, zkuste to prosím znovu.');
       setIsSubmitting(false);
     }
-  }, [items, selectedPoint, email, isEmailValid]);
+  }, [items, shippingMethod, selectedPoint, street, city, zipCode, isAddressValid, email, isEmailValid]);
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-20 md:py-28">
@@ -289,7 +313,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
             <div className="flex justify-between text-muted">
               <span>Doprava (Zásilkovna)</span>
               <span className="text-ink">
-                {selectedPoint ? formatPrice(shippingCents) : '—'}
+                {hasShipping ? formatPrice(shippingCents) : '—'}
               </span>
             </div>
             <div className="flex justify-between border-t border-line pt-3 text-base font-semibold text-ink">
@@ -322,26 +346,84 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
 
           {/* --- Výběr dopravy --- */}
           <div className="mt-6 rounded-3xl border border-line p-6">
-            <button
-              type="button"
-              onClick={handleOpenPacketaWidget}
-              className="flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-white transition-all hover:scale-[1.02] hover:bg-accent-dark"
-            >
-              <MapPin size={15} strokeWidth={2} />
-              {selectedPoint ? 'Změnit výdejní místo' : 'Vybrat výdejní místo'}
-            </button>
+            <div className="flex gap-2 rounded-full bg-mist p-1">
+              <button
+                type="button"
+                onClick={() => setShippingMethod('PACKETA_ZBOX')}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-colors ${
+                  shippingMethod === 'PACKETA_ZBOX'
+                    ? 'bg-white text-ink shadow-sm'
+                    : 'text-muted hover:text-ink'
+                }`}
+              >
+                <MapPin size={15} strokeWidth={2} />
+                Výdejní místo
+              </button>
+              <button
+                type="button"
+                onClick={() => setShippingMethod('PACKETA_HOME')}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-colors ${
+                  shippingMethod === 'PACKETA_HOME'
+                    ? 'bg-white text-ink shadow-sm'
+                    : 'text-muted hover:text-ink'
+                }`}
+              >
+                <Home size={15} strokeWidth={2} />
+                Doručení domů
+              </button>
+            </div>
 
-            {selectedPoint ? (
-              <p className="mt-4 text-sm text-muted">
-                Vybraná pobočka:{' '}
-                <strong className="text-ink">{selectedPoint.name}</strong>{' '}
-                <span className="text-muted">(ID: {selectedPoint.id})</span>
-              </p>
+            {shippingMethod === 'PACKETA_ZBOX' ? (
+              <div className="mt-5">
+                <button
+                  type="button"
+                  onClick={handleOpenPacketaWidget}
+                  className="flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-white transition-all hover:scale-[1.02] hover:bg-accent-dark"
+                >
+                  <MapPin size={15} strokeWidth={2} />
+                  {selectedPoint ? 'Změnit výdejní místo' : 'Vybrat výdejní místo'}
+                </button>
+
+                {selectedPoint ? (
+                  <p className="mt-4 text-sm text-muted">
+                    Vybraná pobočka:{' '}
+                    <strong className="text-ink">{selectedPoint.name}</strong>{' '}
+                    <span className="text-muted">(ID: {selectedPoint.id})</span>
+                  </p>
+                ) : (
+                  <p className="mt-4 text-sm text-muted">
+                    Doručujeme na více než 10 000 výdejních míst a Z-BOXů
+                    Zásilkovny po celé ČR.
+                  </p>
+                )}
+              </div>
             ) : (
-              <p className="mt-4 text-sm text-muted">
-                Doručujeme na více než 10 000 výdejních míst a Z-BOXů Zásilkovny
-                po celé ČR.
-              </p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <input
+                  type="text"
+                  value={street}
+                  onChange={(e) => setStreet(e.target.value)}
+                  placeholder="Ulice a č.p."
+                  aria-label="Ulice a číslo popisné"
+                  className="rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent sm:col-span-2"
+                />
+                <input
+                  type="text"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="Město"
+                  aria-label="Město"
+                  className="rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent"
+                />
+                <input
+                  type="text"
+                  value={zipCode}
+                  onChange={(e) => setZipCode(e.target.value)}
+                  placeholder="PSČ"
+                  aria-label="PSČ"
+                  className="rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent"
+                />
+              </div>
             )}
           </div>
 

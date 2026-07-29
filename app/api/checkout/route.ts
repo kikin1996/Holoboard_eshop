@@ -20,19 +20,25 @@ import { sendOrderPaidEmail } from '@/lib/email';
 interface CheckoutRequestBody {
   items: { variantId: string; quantity: number }[];
   email?: string;
-  shipping: {
-    method: 'PACKETA_ZBOX' | 'PACKETA_HOME' | 'COURIER';
-    packetaBranchId: string;
-    packetaBranchName: string;
-  };
+  shipping:
+    | { method: 'PACKETA_ZBOX'; packetaBranchId: string; packetaBranchName: string }
+    | { method: 'PACKETA_HOME'; street: string; city: string; zipCode: string };
 }
 
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as CheckoutRequestBody;
 
-  if (!body.items?.length || !body.shipping?.packetaBranchId) {
+  const shipping = body.shipping;
+  const hasValidShipping =
+    shipping?.method === 'PACKETA_ZBOX'
+      ? Boolean(shipping.packetaBranchId)
+      : shipping?.method === 'PACKETA_HOME'
+        ? Boolean(shipping.street?.trim() && shipping.city?.trim() && shipping.zipCode?.trim())
+        : false;
+
+  if (!body.items?.length || !hasValidShipping) {
     return NextResponse.json(
-      { error: 'Chybí položky košíku nebo výdejní místo.' },
+      { error: 'Chybí položky košíku nebo doručovací údaje.' },
       { status: 400 }
     );
   }
@@ -79,15 +85,17 @@ export async function POST(request: NextRequest) {
   const orderNumber = `HB-${Date.now()}`;
   const totalPriceCents = itemsTotalCents + SHIPPING_CENTS;
 
-  // Přihlášenému zákazníkovi rovnou uložíme vybrané výdejní místo na profil,
-  // ať se mu příště v checkoutu samo předvyplní (viz Cart.tsx a ProfileForm.tsx).
+  // Přihlášenému zákazníkovi rovnou uložíme použité doručovací údaje na
+  // profil, ať se mu příště v checkoutu samy předvyplní (viz Cart.tsx a
+  // ProfileForm.tsx) - jen tu jednu věc, kterou zrovna použil, se druhou
+  // (např. dřív uložené výdejní místo) nepřepisuje.
   if (session?.user) {
     await prisma.user.update({
       where: { id: session.user.id },
-      data: {
-        savedPacketaBranchId: body.shipping.packetaBranchId,
-        savedPacketaBranchName: body.shipping.packetaBranchName,
-      },
+      data:
+        shipping.method === 'PACKETA_ZBOX'
+          ? { savedPacketaBranchId: shipping.packetaBranchId, savedPacketaBranchName: shipping.packetaBranchName }
+          : { street: shipping.street, city: shipping.city, zipCode: shipping.zipCode },
     });
   }
 
@@ -100,9 +108,10 @@ export async function POST(request: NextRequest) {
       customerName: session?.user?.name ?? null,
       userId: session?.user?.id ?? null,
       totalPriceCents,
-      shippingMethod: body.shipping.method,
-      packetaBranchId: body.shipping.packetaBranchId,
-      packetaBranchName: body.shipping.packetaBranchName,
+      shippingMethod: shipping.method,
+      ...(shipping.method === 'PACKETA_ZBOX'
+        ? { packetaBranchId: shipping.packetaBranchId, packetaBranchName: shipping.packetaBranchName }
+        : { shippingStreet: shipping.street, shippingCity: shipping.city, shippingZip: shipping.zipCode }),
       items: { create: orderItemsData },
     },
   });

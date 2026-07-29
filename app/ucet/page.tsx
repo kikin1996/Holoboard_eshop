@@ -35,7 +35,14 @@ export default async function AccountPage() {
     }),
     prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { phone: true, savedPacketaBranchId: true, savedPacketaBranchName: true },
+      select: {
+        phone: true,
+        street: true,
+        city: true,
+        zipCode: true,
+        savedPacketaBranchId: true,
+        savedPacketaBranchName: true,
+      },
     }),
   ]);
 
@@ -55,6 +62,9 @@ export default async function AccountPage() {
       <div className="mt-8">
         <ProfileForm
           initialPhone={profile?.phone ?? ''}
+          initialStreet={profile?.street ?? ''}
+          initialCity={profile?.city ?? ''}
+          initialZipCode={profile?.zipCode ?? ''}
           initialPacketaBranchId={profile?.savedPacketaBranchId ?? null}
           initialPacketaBranchName={profile?.savedPacketaBranchName ?? null}
         />
@@ -90,6 +100,12 @@ export default async function AccountPage() {
                     </li>
                   ))}
                 </ul>
+
+                <p className="mt-3 border-t border-line pt-3 text-sm text-muted">
+                  {order.shippingMethod === 'PACKETA_ZBOX'
+                    ? `Výdejní místo: ${order.packetaBranchName ?? '—'}`
+                    : `Doručení domů: ${[order.shippingStreet, order.shippingCity, order.shippingZip].filter(Boolean).join(', ')}`}
+                </p>
               </li>
             ))}
           </ul>
