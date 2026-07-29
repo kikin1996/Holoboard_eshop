@@ -41,16 +41,20 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
   const [city, setCity] = useState('');
   const [zipCode, setZipCode] = useState('');
   const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
   const [isWidgetReady, setIsWidgetReady] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const hasPrefilledShipping = useRef(false);
 
-  // Přihlášený zákazník e-mail nevyplňuje - objednávka se stejně napojí
-  // na jeho účet a notifikace o stavu chodí na e-mail z profilu.
+  // Přihlášený zákazník e-mail ani jméno nevyplňuje - objednávka se stejně
+  // napojí na jeho účet. Host musí obojí zadat sám (prohlížeč mu to ale
+  // umí nabídnout z uloženého autofillu díky autoComplete níže).
   useEffect(() => {
     if (session?.user?.email) setEmail(session.user.email);
-  }, [session?.user?.email]);
+    if (session?.user?.name) setName(session.user.name);
+  }, [session?.user?.email, session?.user?.name]);
 
   // Předvyplnění doručovacích údajů z profilu (viz ProfileForm.tsx /
   // /api/profile) - zákazník si je pořád může kdykoliv změnit.
@@ -83,6 +87,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
   }, [session?.user]);
 
   const isEmailValid = /^\S+@\S+\.\S+$/.test(email);
+  const isNameValid = name.trim() !== '';
   const isAddressValid = street.trim() !== '' && city.trim() !== '' && zipCode.trim() !== '';
   const hasShipping = shippingMethod === 'PACKETA_ZBOX' ? Boolean(selectedPoint) : isAddressValid;
 
@@ -140,6 +145,10 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
   const handleCheckout = useCallback(async () => {
     setErrorMessage(null);
 
+    if (!isNameValid) {
+      setErrorMessage('Zadejte prosím jméno a příjmení.');
+      return;
+    }
     if (!isEmailValid) {
       setErrorMessage('Zadejte prosím platný e-mail pro potvrzení objednávky.');
       return;
@@ -156,6 +165,10 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
       setErrorMessage('Košík je prázdný.');
       return;
     }
+    if (!agreedToTerms) {
+      setErrorMessage('Pro dokončení objednávky musíte souhlasit s obchodními podmínkami.');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -170,6 +183,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
             variantId: item.variantId,
             quantity: item.quantity,
           })),
+          name,
           email,
           shipping:
             shippingMethod === 'PACKETA_ZBOX'
@@ -204,7 +218,20 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
       setErrorMessage('Nepodařilo se zahájit platbu, zkuste to prosím znovu.');
       setIsSubmitting(false);
     }
-  }, [items, shippingMethod, selectedPoint, street, city, zipCode, isAddressValid, email, isEmailValid]);
+  }, [
+    items,
+    shippingMethod,
+    selectedPoint,
+    street,
+    city,
+    zipCode,
+    isAddressValid,
+    name,
+    isNameValid,
+    email,
+    isEmailValid,
+    agreedToTerms,
+  ]);
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-20 md:py-28">
@@ -322,9 +349,24 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
             </div>
           </div>
 
-          {/* --- E-mail pro potvrzení a notifikace o stavu objednávky --- */}
+          {/* --- Jméno a e-mail pro potvrzení a notifikace o stavu objednávky --- */}
           <div className="mt-6 rounded-3xl border border-line p-6">
-            <label htmlFor="checkout-email" className="flex items-center gap-2 text-sm font-medium text-ink">
+            <label htmlFor="checkout-name" className="text-sm font-medium text-ink">
+              Jméno a příjmení
+            </label>
+            <input
+              id="checkout-name"
+              type="text"
+              required
+              autoComplete="name"
+              value={name}
+              disabled={Boolean(session?.user?.name)}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Jan Novák"
+              className="mt-1.5 w-full rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent disabled:bg-mist disabled:text-muted"
+            />
+
+            <label htmlFor="checkout-email" className="mt-4 flex items-center gap-2 text-sm font-medium text-ink">
               <Mail size={15} strokeWidth={2} />
               E-mail
             </label>
@@ -337,7 +379,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
               disabled={Boolean(session?.user?.email)}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="vas@email.cz"
-              className="mt-3 w-full rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent disabled:bg-mist disabled:text-muted"
+              className="mt-1.5 w-full rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent disabled:bg-mist disabled:text-muted"
             />
             <p className="mt-2 text-xs text-muted">
               Pošleme na něj potvrzení objednávky a informaci o odeslání.
@@ -405,6 +447,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
                   onChange={(e) => setStreet(e.target.value)}
                   placeholder="Ulice a č.p."
                   aria-label="Ulice a číslo popisné"
+                  autoComplete="street-address"
                   className="rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent sm:col-span-2"
                 />
                 <input
@@ -413,6 +456,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
                   onChange={(e) => setCity(e.target.value)}
                   placeholder="Město"
                   aria-label="Město"
+                  autoComplete="address-level2"
                   className="rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent"
                 />
                 <input
@@ -421,11 +465,69 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
                   onChange={(e) => setZipCode(e.target.value)}
                   placeholder="PSČ"
                   aria-label="PSČ"
+                  autoComplete="postal-code"
                   className="rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent"
                 />
               </div>
             )}
           </div>
+
+          {/* --- Souhrn objednávky --- */}
+          <div className="mt-6 rounded-3xl border border-line p-6">
+            <h2 className="text-sm font-semibold text-ink">Souhrn objednávky</h2>
+            <dl className="mt-3 space-y-1.5 text-sm">
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted">Příjemce</dt>
+                <dd className="text-right text-ink">{name || '—'}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted">E-mail</dt>
+                <dd className="text-right text-ink">{email || '—'}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted">Doručení</dt>
+                <dd className="text-right text-ink">
+                  {shippingMethod === 'PACKETA_ZBOX'
+                    ? selectedPoint?.name ?? 'nevybráno'
+                    : isAddressValid
+                      ? `${street}, ${city}, ${zipCode}`
+                      : 'nevyplněno'}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4 border-t border-line pt-1.5 font-medium">
+                <dt className="text-ink">Celkem k úhradě</dt>
+                <dd className="text-right text-accent-orange">{formatPrice(totalCents)}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <label className="mt-6 flex items-start gap-3 text-sm text-muted">
+            <input
+              type="checkbox"
+              checked={agreedToTerms}
+              onChange={(e) => setAgreedToTerms(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-line text-accent focus:ring-accent"
+            />
+            <span>
+              Souhlasím s{' '}
+              <Link
+                href="/obchodni-podminky"
+                target="_blank"
+                className="font-medium text-accent underline underline-offset-4"
+              >
+                obchodními podmínkami
+              </Link>{' '}
+              a{' '}
+              <Link
+                href="/ochrana-osobnich-udaju"
+                target="_blank"
+                className="font-medium text-accent underline underline-offset-4"
+              >
+                zpracováním osobních údajů
+              </Link>
+              .
+            </span>
+          </label>
 
           {errorMessage && (
             <p className="mt-6 rounded-2xl bg-red-50 p-4 text-sm text-red-700" role="alert">
@@ -437,7 +539,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
           <button
             type="button"
             onClick={handleCheckout}
-            disabled={isSubmitting || items.length === 0}
+            disabled={isSubmitting || items.length === 0 || !agreedToTerms}
             className="mt-6 w-full rounded-full bg-accent-orange px-6 py-4 text-sm font-medium text-white transition-all hover:scale-[1.01] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSubmitting ? 'Zakládám platbu…' : 'Přejít k platbě'}

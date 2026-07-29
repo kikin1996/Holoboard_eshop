@@ -19,6 +19,7 @@ import { sendOrderPaidEmail } from '@/lib/email';
 
 interface CheckoutRequestBody {
   items: { variantId: string; quantity: number }[];
+  name?: string;
   email?: string;
   shipping:
     | { method: 'PACKETA_ZBOX'; packetaBranchId: string; packetaBranchName: string }
@@ -43,16 +44,24 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Přihlášený zákazník má e-mail na účtu (bezpečnější než věřit tělu
-  // požadavku) - host musí zadat platný e-mail v checkout formuláři, aby
-  // mu mohly dojít notifikace o stavu objednávky.
+  // Přihlášený zákazník má jméno a e-mail na účtu (bezpečnější než věřit
+  // tělu požadavku) - host musí obojí zadat v checkout formuláři, aby ho
+  // šlo identifikovat a aby mu mohly dojít notifikace o stavu objednávky.
   const session = await auth();
   const guestEmail = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+  const guestName = typeof body.name === 'string' ? body.name.trim() : '';
   const customerEmail = session?.user?.email ?? guestEmail;
+  const customerName = session?.user?.name ?? guestName;
 
   if (!customerEmail || !customerEmail.includes('@')) {
     return NextResponse.json(
       { error: 'Zadejte prosím platný e-mail pro potvrzení objednávky.' },
+      { status: 400 }
+    );
+  }
+  if (!customerName) {
+    return NextResponse.json(
+      { error: 'Zadejte prosím jméno a příjmení.' },
       { status: 400 }
     );
   }
@@ -105,7 +114,7 @@ export async function POST(request: NextRequest) {
     data: {
       orderNumber,
       customerEmail,
-      customerName: session?.user?.name ?? null,
+      customerName,
       userId: session?.user?.id ?? null,
       totalPriceCents,
       shippingMethod: shipping.method,

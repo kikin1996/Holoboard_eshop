@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function Footer() {
   return (
     <footer className="border-t border-line">
@@ -45,8 +47,16 @@ export default function Footer() {
             <div>
               <p className="mb-3 font-medium text-ink">Právní dokumenty</p>
               <ul className="space-y-2">
-                <li>Podmínky ochrany osobních údajů</li>
-                <li>Všeobecné obchodní podmínky</li>
+                <li>
+                  <Link href="/ochrana-osobnich-udaju" className="transition-colors hover:text-accent">
+                    Podmínky ochrany osobních údajů
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/obchodni-podminky" className="transition-colors hover:text-accent">
+                    Všeobecné obchodní podmínky
+                  </Link>
+                </li>
                 <li>Vzor odstoupení od smlouvy</li>
                 <li>Vzor reklamačního formuláře</li>
               </ul>

@@ -96,6 +96,7 @@ export default function ProfileForm({
         <input
           id="profile-phone"
           type="tel"
+          autoComplete="tel"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           placeholder="+420 777 123 456"
@@ -133,6 +134,7 @@ export default function ProfileForm({
             onChange={(e) => setStreet(e.target.value)}
             placeholder="Ulice a č.p."
             aria-label="Ulice a číslo popisné"
+            autoComplete="street-address"
             className="rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent sm:col-span-2"
           />
           <input
@@ -141,6 +143,7 @@ export default function ProfileForm({
             onChange={(e) => setCity(e.target.value)}
             placeholder="Město"
             aria-label="Město"
+            autoComplete="address-level2"
             className="rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent"
           />
           <input
@@ -149,6 +152,7 @@ export default function ProfileForm({
             onChange={(e) => setZipCode(e.target.value)}
             placeholder="PSČ"
             aria-label="PSČ"
+            autoComplete="postal-code"
             className="rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent"
           />
         </div>
