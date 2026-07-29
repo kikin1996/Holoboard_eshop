@@ -1,7 +1,7 @@
 
 # HoloBoard – Headless e-shop: technická architektura
 
-Stack: **Next.js (App Router) + Tailwind** (frontend) / **MedusaJS nebo Strapi** (e-commerce jádro) / **ComGate** (platby) / **Packeta (Zásilkovna)** (doprava).
+Stack: **Next.js (App Router) + Tailwind** (frontend) / **MedusaJS nebo Strapi** (e-commerce jádro) / **Stripe** (platby) / **Packeta (Zásilkovna)** (doprava).
 
 ---
 
@@ -13,9 +13,9 @@ Next.js nikdy nemluví s platební bránou ani se skladem přímo z prohlížeč
 
 - číst veřejná data produktů (katalog, ceny, dostupnost) přes REST/GraphQL API backendu,
 - zapisovat do *vlastního* košíku (Medusa Cart API je k tomu určené a bezpečné i z klienta – pracuje s cart ID uloženým v cookie),
-- volat *vlastní* Next.js API routy (`/app/api/*`), které teprve server-to-server komunikují s ComGate a Medusa/Strapi admin API.
+- volat *vlastní* Next.js API routy (`/app/api/*`), které teprve server-to-server komunikují se Stripe a Medusa/Strapi admin API.
 
-Tajné klíče (ComGate `secret`, Medusa admin token, Strapi API token se zápisem) žijí **pouze** v `.env` na serveru a používají se výhradně uvnitř Next.js Route Handlers (Node runtime), nikdy v `NEXT_PUBLIC_*` proměnných.
+Tajné klíče (Stripe `secret key`, Medusa admin token, Strapi API token se zápisem) žijí **pouze** v `.env` na serveru a používají se výhradně uvnitř Next.js Route Handlers (Node runtime), nikdy v `NEXT_PUBLIC_*` proměnných.
 
 ```
 ┌─────────────┐        veřejné REST/GraphQL          ┌──────────────────┐
@@ -34,18 +34,18 @@ Tajné klíče (ComGate `secret`, Medusa admin token, Strapi API token se zápis
                                                  │ server-to-server (secret)
                                                  ▼
                                           ┌──────────────┐
-                                          │   ComGate     │
-                                          │ REST API      │
+                                          │   Stripe      │
+                                          │ Checkout API  │
                                           └──────┬────────┘
                                                  │ redirect (302) uživatele na branu
                                                  ▼
-                                          uživatel platí na comgate.cz
+                                          uživatel platí na checkout.stripe.com
                                                  │
-                                                 │ webhook (server-to-server)
+                                                 │ webhook (server-to-server, podepsané)
                                                  ▼
-                                          POST /api/webhooks/comgate ──▶ ověření
-                                          (Next.js API Route)            + update
-                                                                          objednávky
+                                          POST /api/webhooks/stripe ──▶ ověření
+                                          (Next.js API Route)          podpisu + update
+                                                                        objednávky
 ```
 
 ### 1.2 Tok dat – produkty a katalog
@@ -79,31 +79,31 @@ Tajné klíče (ComGate `secret`, Medusa admin token, Strapi API token se zápis
 
 Widget běží jen na klientovi, žádný tajný klíč se nepřenáší – jediné, co server potřebuje uchovat, je **ID pobočky**.
 
-### 1.5 Platba – ComGate
+### 1.5 Platba – Stripe
 
-ComGate REST API (`https://payments.comgate.cz/v2.0/`) nemá klasické HMAC podepisování požadavků – autentizace je založena na dvojici `merchant` + `secret` posílané v těle požadavku (server-to-server) a na IP whitelistingu callbacků. Proto se **nikdy** nevolá přímo z prohlížeče.
+Stripe Checkout Session se vytváří server-to-server pomocí tajného `STRIPE_SECRET_KEY` (Stripe SDK, ne holé REST volání jako u dřívějšího ComGate). Webhook se ověřuje kryptografickým podpisem (HMAC nad syrovým tělem požadavku), ne IP whitelistingem.
 
 **Krok A – vytvoření platby (server):**
 
-1. Klient klikne na „Přejít k platbě“ → `POST /api/checkout` s obsahem košíku (položky, doprava, `packetaBranchId`, e-mail).
-2. Next.js API route:
-   - vytvoří/uzavře objednávku v Meduse (status `pending`, uloží `packetaBranchId`),
-   - zavolá server-to-server `POST https://payments.comgate.cz/v2.0/create` s parametry `merchant`, `secret`, `price` (v haléřích), `curr=CZK`, `label`, `refId` (= interní číslo objednávky), `method`, `email`, `redirectUrl` (návrat na `/objednavka/dekujeme`), `cancelUrl`.
-   - ComGate vrátí `redirect` URL a `transId`; `transId` se uloží k objednávce (`paymentTransactionId`).
-3. Next.js vrátí klientovi `redirectUrl`, klient prohlížeč přesměruje (`window.location.href = redirectUrl`) na platební bránu.
+1. Klient klikne na „Přejít k platbě“ → `POST /api/checkout` s obsahem košíku (položky, doprava, `packetaBranchId`/adresa, jméno, e-mail, telefon).
+2. Next.js API route (`app/api/checkout/route.ts`):
+   - založí objednávku (status `PENDING`, uloží doručovací údaje),
+   - zavolá `stripe.checkout.sessions.create({...})` s položkami (`line_items`), dopravou jako extra položkou, `metadata.orderNumber` (pro pozdější spárování webhooku), `success_url` a `cancel_url`.
+   - Stripe vrátí `checkoutSession.url` a `checkoutSession.id`; `id` se uloží k objednávce (`paymentTransactionId`).
+3. Next.js vrátí klientovi `redirectUrl` (= `checkoutSession.url`), klient prohlížeč přesměruje (`window.location.href = redirectUrl`) na Stripe Checkout.
 
 **Krok B – potvrzení platby (webhook, server-to-server):**
 
-4. Po zaplacení ComGate zavolá váš `POST /api/webhooks/comgate` s `transId`, `refId`, `status` (`PAID`/`CANCELLED`).
-5. **Nikdy se nevěří obsahu webhooku samotnému** – Next.js route si sama zavolá zpět `POST https://payments.comgate.cz/v2.0/status` s `merchant` + `secret` + `transId` a ověří skutečný stav platby přímo u ComGate.
-6. Až po tomto ověření se objednávka v Meduse/Strapi označí jako zaplacená (`payment_status = captured`), sníží se sklad a odešle e-mail zákazníkovi.
-7. Zákazník se po návratu z brány (`redirectUrl`) dostane na "Děkujeme" stránku, která přes `GET /api/orders/:id/status` zjistí aktuální (ověřený) stav – **stránka nikdy nespoléhá jen na to, že uživatel byl přesměrován zpět**, protože webhook a redirect přichází asynchronně a nezávisle na sobě.
+4. Po zaplacení Stripe zavolá `POST /api/webhooks/stripe` s eventem `checkout.session.completed` (podepsaným v hlavičce `stripe-signature`).
+5. **Nikdy se nevěří tělu webhooku bez ověření** – `stripe.webhooks.constructEvent(rawBody, signature, STRIPE_WEBHOOK_SECRET)` ověří, že požadavek opravdu přišel od Stripe (jinak vyhodí výjimku a route vrátí 400).
+6. Až po tomto ověření se objednávka označí jako zaplacená (`status = PAID`), odešle se potvrzovací e-mail (Resend) a případně (`[TODO]`) sníží sklad.
+7. Zákazník se po návratu z brány (`success_url`) dostane na "Děkujeme" stránku – **stránka nikdy sama netvrdí, že je zaplaceno jen proto, že se tam uživatel dostal**, protože webhook a redirect přichází asynchronně a nezávisle na sobě (viz demo-režim banner na téže stránce, když Stripe není nakonfigurované vůbec).
 
 ### 1.6 Shrnutí bezpečnostních zásad
 
-1. Tajné klíče (ComGate `secret`, admin tokeny) pouze v serverových `.env`, nikdy v `NEXT_PUBLIC_*`.
+1. Tajné klíče (Stripe `secret key`/`webhook secret`, admin tokeny) pouze v serverových `.env`, nikdy v `NEXT_PUBLIC_*`.
 2. Cena se vždy dopočítává na serveru (Medusa/Strapi + Next.js route) – klient posílá jen ID varianty a množství, nikdy částku.
-3. Platba se potvrzuje dvojitě: webhook je jen "spouštěč", reálný stav se ověřuje zpětným dotazem na ComGate.
+3. Platba se potvrzuje dvojitě: webhook je jen "spouštěč", jeho podpis se ověřuje kryptograficky (`stripe.webhooks.constructEvent`), ne jen tím, že požadavek přišel.
 4. Next.js API routy pro checkout/webhook běží v Node runtime (ne Edge), protože potřebují tajné proměnné a plnou HTTP knihovnu.
 
 ---
@@ -134,7 +134,7 @@ Klíčová pole pro tento zadání: `Order.packetaBranchId` a `Order.packetaBran
 - `npm run dev` spustí košík (`app/page.tsx` → `components/Cart.tsx`) s ukázkovými daty.
 - Tlačítko „Vybrat výdejní místo“ opravdu otevře ostrý Packeta Widget (potřebuje `NEXT_PUBLIC_PACKETA_API_KEY`).
 - Tlačítko „Přejít k platbě“ zavolá `app/api/checkout/route.ts`:
-  - bez nastavených `COMGATE_*` proměnných vrátí mock redirect na `/objednavka/dekujeme` (demo režim),
-  - s nastavenými proměnnými reálně založí platbu u ComGate a přesměruje na ostrou/testovací bránu.
-- `app/api/webhooks/comgate/route.ts` je připravený endpoint pro ComGate notifikace (potřebuje nastavit URL webhooku v ComGate administraci).
+  - bez nastaveného `STRIPE_SECRET_KEY` vrátí mock redirect na `/objednavka/dekujeme` (demo režim, jasně označený bannerem),
+  - s nastaveným klíčem reálně založí Stripe Checkout Session a přesměruje na ostrou/testovací bránu.
+- `app/api/webhooks/stripe/route.ts` je připravený endpoint pro Stripe notifikace (potřebuje nastavit `STRIPE_WEBHOOK_SECRET` a URL webhooku ve Stripe Dashboardu → Developers → Webhooks).
 - Napojení na MedusaJS/Strapi (načtení produktů, zápis objednávky, odečet skladu) je označené `[TODO]` v kódu – to už záleží na konkrétní zvolené instanci a jejím API.

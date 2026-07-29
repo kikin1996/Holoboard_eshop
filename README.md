@@ -39,9 +39,9 @@ git push -u origin main
 1. Jdi na [vercel.com](https://vercel.com) → přihlas se přes GitHub účet.
 2. „Add New… → Project“ → vyber repo `holoboard-shop`.
 3. Vercel automaticky pozná Next.js (framework preset se nastaví sám, build command `next build`, output `.next`).
-4. V kroku „Environment Variables“ vlož obsah `.env.example` s reálnými hodnotami (min. `NEXT_PUBLIC_PACKETA_API_KEY`; `COMGATE_MERCHANT_ID` a `COMGATE_SECRET` až budeš mít ostrý/testovací ComGate účet).
+4. V kroku „Environment Variables“ vlož obsah `.env.example` s reálnými hodnotami (min. `NEXT_PUBLIC_PACKETA_API_KEY`; `STRIPE_SECRET_KEY` a `STRIPE_WEBHOOK_SECRET` až budeš mít ostrý/testovací Stripe účet).
 5. Klikni „Deploy“. Po pár desítkách sekund dostaneš URL typu `holoboard-shop.vercel.app`.
-6. Nastav `NEXT_PUBLIC_SITE_URL` na tuto finální URL (Vercel → Settings → Environment Variables) a redeployni (Vercel → Deployments → „Redeploy“), protože se používá jako `redirectUrl`/`cancelUrl` pro ComGate.
+6. Nastav `NEXT_PUBLIC_SITE_URL` na tuto finální URL (Vercel → Settings → Environment Variables) a redeployni (Vercel → Deployments → „Redeploy“), protože se používá jako `success_url`/`cancel_url` pro Stripe.
 
 **Alternativa – přes Vercel CLI:**
 
@@ -54,8 +54,8 @@ vercel --prod     # nasadí na produkční doménu
 
 **Automatické nasazování:** jakmile je repo propojené s Vercel projektem, každý `git push` na `main` spustí produkční deploy a každý push do jiné větve / pull requestu vytvoří samostatný preview deploy s vlastní URL – ideální pro testování před spojením do `main`.
 
-### Až budeš mít reálný ComGate a Packeta účet
+### Až budeš mít reálný Stripe a Packeta účet
 
-- U ComGate v administraci nastav URL pro notifikace na `https://<tvoje-domena>/api/webhooks/comgate`.
-- `COMGATE_SECRET` a `MEDUSA_ADMIN_TOKEN`/`STRAPI_API_TOKEN` nastavuj **jen** ve Vercel Environment Variables (ne `NEXT_PUBLIC_*`), ať nikdy neskončí v kódu prohlížeče.
+- Ve Stripe Dashboardu (Developers → Webhooks) přidej endpoint `https://<tvoje-domena>/api/webhooks/stripe` pro event `checkout.session.completed` a zkopíruj jeho signing secret do `STRIPE_WEBHOOK_SECRET`.
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` a `MEDUSA_ADMIN_TOKEN`/`STRAPI_API_TOKEN` nastavuj **jen** ve Vercel Environment Variables (ne `NEXT_PUBLIC_*`), ať nikdy neskončí v kódu prohlížeče.
 - Napojení na MedusaJS/Strapi (viz `[TODO]` komentáře v `app/api/checkout/route.ts`) dopiš podle konkrétní instance, kterou zprovozníš (Medusa Cloud, self-hosted, Strapi Cloud…).

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getVariant, SHIPPING_CENTS } from '@/lib/catalog';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { stripe } from '@/lib/stripe';
 import { sendOrderPaidEmail } from '@/lib/email';
 
 // =============================================================================
@@ -14,13 +15,14 @@ import { sendOrderPaidEmail } from '@/lib/email';
 //   1) Ověří vstup od klienta (jen variantId + quantity, žádná cena).
 //   2) [TODO v reálném projektu] Dopočítá cenu podle aktuální ceny varianty
 //      v Meduse/Strapi (server-to-server, admin token) a zapíše objednávku.
-//   3) Založí platbu u ComGate (POST /v2.0/create) a vrátí redirectUrl.
+//   3) Založí platbu u Stripe (Checkout Session) a vrátí redirectUrl.
 // =============================================================================
 
 interface CheckoutRequestBody {
   items: { variantId: string; quantity: number }[];
   name?: string;
   email?: string;
+  phone?: string;
   shipping:
     | { method: 'PACKETA_ZBOX'; packetaBranchId: string; packetaBranchName: string }
     | { method: 'PACKETA_HOME'; street: string; city: string; zipCode: string };
@@ -44,14 +46,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Přihlášený zákazník má jméno a e-mail na účtu (bezpečnější než věřit
-  // tělu požadavku) - host musí obojí zadat v checkout formuláři, aby ho
-  // šlo identifikovat a aby mu mohly dojít notifikace o stavu objednávky.
+  // Přihlášený zákazník má jméno, e-mail a telefon na účtu (bezpečnější než
+  // věřit tělu požadavku) - host musí vše zadat v checkout formuláři, aby ho
+  // šlo identifikovat, zkontaktovat kvůli doručení a poslat mu notifikace.
   const session = await auth();
   const guestEmail = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
   const guestName = typeof body.name === 'string' ? body.name.trim() : '';
+  const guestPhone = typeof body.phone === 'string' ? body.phone.trim() : '';
   const customerEmail = session?.user?.email ?? guestEmail;
   const customerName = session?.user?.name ?? guestName;
+  const customerPhone = guestPhone; // profil telefon zatím do session nedáváme, viz /api/profile
 
   if (!customerEmail || !customerEmail.includes('@')) {
     return NextResponse.json(
@@ -62,6 +66,12 @@ export async function POST(request: NextRequest) {
   if (!customerName) {
     return NextResponse.json(
       { error: 'Zadejte prosím jméno a příjmení.' },
+      { status: 400 }
+    );
+  }
+  if (!customerPhone) {
+    return NextResponse.json(
+      { error: 'Zadejte prosím telefonní číslo pro doručení.' },
       { status: 400 }
     );
   }
@@ -94,17 +104,19 @@ export async function POST(request: NextRequest) {
   const orderNumber = `HB-${Date.now()}`;
   const totalPriceCents = itemsTotalCents + SHIPPING_CENTS;
 
-  // Přihlášenému zákazníkovi rovnou uložíme použité doručovací údaje na
-  // profil, ať se mu příště v checkoutu samy předvyplní (viz Cart.tsx a
-  // ProfileForm.tsx) - jen tu jednu věc, kterou zrovna použil, se druhou
-  // (např. dřív uložené výdejní místo) nepřepisuje.
+  // Přihlášenému zákazníkovi rovnou uložíme použité doručovací údaje (a
+  // telefon) na profil, ať se mu příště v checkoutu samy předvyplní (viz
+  // Cart.tsx a ProfileForm.tsx) - jen tu jednu věc, kterou zrovna použil, se
+  // druhou (např. dřív uložené výdejní místo) nepřepisuje.
   if (session?.user) {
     await prisma.user.update({
       where: { id: session.user.id },
-      data:
-        shipping.method === 'PACKETA_ZBOX'
+      data: {
+        phone: customerPhone,
+        ...(shipping.method === 'PACKETA_ZBOX'
           ? { savedPacketaBranchId: shipping.packetaBranchId, savedPacketaBranchName: shipping.packetaBranchName }
-          : { street: shipping.street, city: shipping.city, zipCode: shipping.zipCode },
+          : { street: shipping.street, city: shipping.city, zipCode: shipping.zipCode }),
+      },
     });
   }
 
@@ -115,6 +127,7 @@ export async function POST(request: NextRequest) {
       orderNumber,
       customerEmail,
       customerName,
+      customerPhone,
       userId: session?.user?.id ?? null,
       totalPriceCents,
       shippingMethod: shipping.method,
@@ -125,16 +138,14 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  const merchant = process.env.COMGATE_MERCHANT_ID;
-  const secret = process.env.COMGATE_SECRET;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
-  // Bez nastavených ComGate proměnných (např. v demo/preview nasazení bez
-  // reálného merchant účtu) vrátíme mock redirect na lokální "díky" stránku,
-  // aby šel celý tok vyzkoušet i bez ostrých plateb. Demo objednávka nemá
-  // žádnou reálnou platbu, kterou by šlo ověřit webhookem, takže ji rovnou
-  // označíme jako zaplacenou.
-  if (!merchant || !secret) {
+  // Bez nastaveného STRIPE_SECRET_KEY (např. lokální vývoj / demo nasazení
+  // bez účtu) vrátíme mock redirect na "díky" stránku, aby šel celý tok
+  // vyzkoušet i bez ostrých plateb. Demo objednávka nemá žádnou reálnou
+  // platbu, kterou by šlo ověřit webhookem, takže ji rovnou označíme jako
+  // zaplacenou.
+  if (!stripe) {
     await prisma.order.update({
       where: { id: order.id },
       data: { status: 'PAID', paymentStatus: 'PAID' },
@@ -146,52 +157,58 @@ export async function POST(request: NextRequest) {
   }
 
   // ---------------------------------------------------------------------
-  // 2) Reálné založení platby u ComGate - server-to-server, secret
-  //    se nikdy neposílá klientovi.
+  // 2) Reálné založení platby u Stripe (Checkout Session) - tajný klíč se
+  //    nikdy neposílá klientovi, jen se z něj server-to-server vytvoří
+  //    session a klientovi se vrátí jen hostovaná platební URL.
   // ---------------------------------------------------------------------
-  const comgateResponse = await fetch('https://payments.comgate.cz/v2.0/create', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      merchant,
-      secret,
-      test: process.env.COMGATE_TEST_MODE === 'true' ? 'true' : 'false',
-      price: String(totalPriceCents), // haléře
-      curr: 'CZK',
-      label: 'HoloBoard objednávka',
-      refId: orderNumber, // interní číslo objednávky - použije se pro párování webhooku
-      method: 'ALL',
-      email: order.customerEmail,
-      redirectUrl: `${siteUrl}/objednavka/dekujeme?orderNumber=${orderNumber}`,
-      cancelUrl: `${siteUrl}/kosik?zruseno=1`,
-    }),
-  });
+  try {
+    const checkoutSession = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      customer_email: customerEmail,
+      line_items: [
+        ...orderItemsData.map((item) => ({
+          price_data: {
+            currency: 'czk',
+            product_data: { name: item.productName },
+            unit_amount: item.unitPriceCents,
+          },
+          quantity: item.quantity,
+        })),
+        {
+          price_data: {
+            currency: 'czk',
+            product_data: { name: 'Doprava (Zásilkovna)' },
+            unit_amount: SHIPPING_CENTS,
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: { orderNumber },
+      success_url: `${siteUrl}/objednavka/dekujeme?orderNumber=${orderNumber}`,
+      cancel_url: `${siteUrl}/kosik?zruseno=1`,
+    });
 
-  const comgateText = await comgateResponse.text();
-  // ComGate vrací klasický "application/x-www-form-urlencoded" formát odpovědi
-  const params = new URLSearchParams(comgateText);
-  const redirectUrl = params.get('redirect');
-  const transId = params.get('transId');
-  const code = params.get('code'); // "0" = OK
+    if (!checkoutSession.url) {
+      throw new Error('Stripe nevrátil platební URL.');
+    }
 
-  if (code !== '0' || !redirectUrl) {
+    // session.id se uloží k objednávce, aby ho šlo spárovat ve webhooku
+    // (app/api/webhooks/stripe/route.ts) - status zůstává PENDING, dokud
+    // ho webhook po ověření podpisu nepřepne na PAID.
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { paymentProvider: 'stripe', paymentTransactionId: checkoutSession.id },
+    });
+
+    return NextResponse.json({ redirectUrl: checkoutSession.url, orderNumber });
+  } catch (error) {
     await prisma.order.update({
       where: { id: order.id },
       data: { status: 'CANCELLED', paymentStatus: 'CANCELLED' },
     });
     return NextResponse.json(
-      { error: 'Založení platby u ComGate selhalo.', details: comgateText },
+      { error: 'Založení platby u Stripe selhalo.', details: String(error) },
       { status: 502 }
     );
   }
-
-  // transId se uloží k objednávce, aby ho šlo spárovat ve webhooku
-  // (app/api/webhooks/comgate/route.ts) - status zůstává PENDING, dokud
-  // ho webhook po ověření u ComGate nepřepne na PAID.
-  await prisma.order.update({
-    where: { id: order.id },
-    data: { paymentTransactionId: transId },
-  });
-
-  return NextResponse.json({ redirectUrl, transId, orderNumber });
 }

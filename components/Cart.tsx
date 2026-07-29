@@ -14,21 +14,21 @@
 //      ID a název pobočky - žádná platba ani sklad se tu neřeší.
 //   3) Tlačítko "Přejít k platbě" odešle obsah košíku + ID pobočky na
 //      VLASTNÍ Next.js API route (/api/checkout). Ta teprve server-to-server
-//      založí objednávku a platbu u ComGate. Tajný ComGate "secret" se
-//      v této komponentě vůbec neobjevuje - je jen na serveru.
+//      založí objednávku a platbu u Stripe. Tajný Stripe klíč se v této
+//      komponentě vůbec neobjevuje - je jen na serveru.
 // =============================================================================
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Script from 'next/script';
 import { useSession } from 'next-auth/react';
-import { Minus, Plus, Trash2, ShoppingBag, MapPin, Mail, Home } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingBag, MapPin, Mail, Home, Phone } from 'lucide-react';
 import { useCart } from '@/components/CartContext';
 import { SHIPPING_CENTS, formatPrice } from '@/lib/catalog';
 import type { PacketaPoint } from '@/lib/packeta';
 
 interface CartProps {
-  /** true, když se zákazník vrátil z ComGate bez dokončení platby (?zruseno=1). */
+  /** true, když se zákazník vrátil z Stripe bez dokončení platby (?zruseno=1). */
   paymentCancelled?: boolean;
 }
 
@@ -42,6 +42,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
   const [zipCode, setZipCode] = useState('');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [isWidgetReady, setIsWidgetReady] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,6 +66,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
       try {
         const response = await fetch('/api/profile');
         const data = (await response.json()) as {
+          phone?: string;
           street?: string;
           city?: string;
           zipCode?: string;
@@ -77,6 +79,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
             name: data.savedPacketaBranchName ?? data.savedPacketaBranchId,
           });
         }
+        if (data.phone) setPhone(data.phone);
         if (data.street) setStreet(data.street);
         if (data.city) setCity(data.city);
         if (data.zipCode) setZipCode(data.zipCode);
@@ -88,6 +91,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
 
   const isEmailValid = /^\S+@\S+\.\S+$/.test(email);
   const isNameValid = name.trim() !== '';
+  const isPhoneValid = phone.trim() !== '';
   const isAddressValid = street.trim() !== '' && city.trim() !== '' && zipCode.trim() !== '';
   const hasShipping = shippingMethod === 'PACKETA_ZBOX' ? Boolean(selectedPoint) : isAddressValid;
 
@@ -140,7 +144,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
   }, [isWidgetReady]);
 
   // ---------------------------------------------------------------------
-  // Krok 2: odeslání na backend - vytvoření objednávky + platby u ComGate
+  // Krok 2: odeslání na backend - vytvoření objednávky + platby u Stripe
   // ---------------------------------------------------------------------
   const handleCheckout = useCallback(async () => {
     setErrorMessage(null);
@@ -151,6 +155,10 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
     }
     if (!isEmailValid) {
       setErrorMessage('Zadejte prosím platný e-mail pro potvrzení objednávky.');
+      return;
+    }
+    if (!isPhoneValid) {
+      setErrorMessage('Zadejte prosím telefonní číslo - je potřeba pro doručení kurýrem/Zásilkovnou.');
       return;
     }
     if (shippingMethod === 'PACKETA_ZBOX' && !selectedPoint) {
@@ -172,7 +180,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
 
     setIsSubmitting(true);
     try {
-      // Voláme VLASTNÍ Next.js API route, ne ComGate přímo. Tělo požadavku
+      // Voláme VLASTNÍ Next.js API route, ne Stripe přímo. Tělo požadavku
       // obsahuje jen ID varianty a množství (cenu si server vždy přepočítá
       // sám podle katalogu - klient cenu neposílá).
       const response = await fetch('/api/checkout', {
@@ -185,6 +193,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
           })),
           name,
           email,
+          phone,
           shipping:
             shippingMethod === 'PACKETA_ZBOX'
               ? {
@@ -205,11 +214,11 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
         throw new Error(`Checkout selhal (HTTP ${response.status})`);
       }
 
-      // Server vrací redirectUrl, kterou vygeneroval ComGate
+      // Server vrací redirectUrl, kterou vygeneroval Stripe
       // (POST https://payments.comgate.cz/v2.0/create) - viz architektura, kap. 1.5.
       const data: { redirectUrl: string } = await response.json();
 
-      // Přesměrování na platební bránu ComGate. Po zaplacení ComGate
+      // Přesměrování na platební bránu Stripe. Po zaplacení Stripe
       // zavolá webhook /api/webhooks/comgate server-to-server a teprve
       // ten (po ověření přes /v2.0/status) označí objednávku jako zaplacenou.
       window.location.href = data.redirectUrl;
@@ -230,6 +239,8 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
     isNameValid,
     email,
     isEmailValid,
+    phone,
+    isPhoneValid,
     agreedToTerms,
   ]);
 
@@ -384,6 +395,22 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
             <p className="mt-2 text-xs text-muted">
               Pošleme na něj potvrzení objednávky a informaci o odeslání.
             </p>
+
+            <label htmlFor="checkout-phone" className="mt-4 flex items-center gap-2 text-sm font-medium text-ink">
+              <Phone size={15} strokeWidth={2} />
+              Telefon
+            </label>
+            <input
+              id="checkout-phone"
+              type="tel"
+              required
+              autoComplete="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+420 777 123 456"
+              className="mt-1.5 w-full rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent"
+            />
+            <p className="mt-2 text-xs text-muted">Potřebuje ho kurýr/Zásilkovna kvůli doručení.</p>
           </div>
 
           {/* --- Výběr dopravy --- */}
@@ -485,6 +512,10 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
                 <dd className="text-right text-ink">{email || '—'}</dd>
               </div>
               <div className="flex justify-between gap-4">
+                <dt className="text-muted">Telefon</dt>
+                <dd className="text-right text-ink">{phone || '—'}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
                 <dt className="text-muted">Doručení</dt>
                 <dd className="text-right text-ink">
                   {shippingMethod === 'PACKETA_ZBOX'
@@ -546,7 +577,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
           </button>
 
           <p className="mt-4 text-center text-xs text-muted">
-            Bezpečná platba přes ComGate · kartou i bankovním převodem
+            Bezpečná platba přes Stripe · kartou i bankovním převodem
           </p>
         </>
       )}
