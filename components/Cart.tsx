@@ -8,13 +8,16 @@
 // Datový tok (viz ARCHITECTURE.md, kap. 1.4 a 1.5):
 //   1) Položky košíku žijí ve sdíleném CartContextu (localStorage persistence);
 //      v reálu by se synchronizovaly s Medusa Cart API.
-//   2) Tlačítko "Vybrat výdejní místo" otevře oficiální Packeta (Zásilkovna)
-//      JS Widget. Widget běží čistě na klientovi, klíč je veřejný
-//      (NEXT_PUBLIC_PACKETA_API_KEY), po výběru se do state uloží jen
-//      ID a název pobočky - žádná platba ani sklad se tu neřeší.
-//   3) Tlačítko "Přejít k platbě" odešle obsah košíku + ID pobočky na
-//      VLASTNÍ Next.js API route (/api/checkout). Ta teprve server-to-server
-//      založí objednávku a platbu u Stripe. Tajný Stripe klíč se v této
+//   2) Doprava se vybírá ve dvou krocích: nejdřív způsob (výdejní místo /
+//      domů), pak dopravce (Zásilkovna / PPL). U Zásilkovny se výdejní
+//      místo vybírá přes oficiální Packeta JS Widget (veřejný klíč,
+//      NEXT_PUBLIC_PACKETA_API_KEY). PPL zatím nemá veřejné API/widget,
+//      takže výdejní místo se jen ručně napíše - reálná integrace (štítky,
+//      mapa poboček) by čekala na vlastní PPL účet, stejně jako ComGate/
+//      Stripe/Resend dřív.
+//   3) Tlačítko "Přejít k platbě" odešle obsah košíku na VLASTNÍ Next.js
+//      API route (/api/checkout). Ta teprve server-to-server založí
+//      objednávku a platbu u Stripe. Tajný Stripe klíč se v této
 //      komponentě vůbec neobjevuje - je jen na serveru.
 // =============================================================================
 
@@ -27,6 +30,15 @@ import { useCart } from '@/components/CartContext';
 import { SHIPPING_CENTS, formatPrice } from '@/lib/catalog';
 import type { PacketaPoint } from '@/lib/packeta';
 
+type DeliveryType = 'PICKUP' | 'HOME';
+type Carrier = 'ZASILKOVNA' | 'PPL';
+type ShippingMethod = 'PACKETA_ZBOX' | 'PPL_ZBOX' | 'PACKETA_HOME' | 'COURIER';
+
+function toShippingMethod(deliveryType: DeliveryType, carrier: Carrier): ShippingMethod {
+  if (deliveryType === 'PICKUP') return carrier === 'ZASILKOVNA' ? 'PACKETA_ZBOX' : 'PPL_ZBOX';
+  return carrier === 'ZASILKOVNA' ? 'PACKETA_HOME' : 'COURIER';
+}
+
 interface CartProps {
   /** true, když se zákazník vrátil z Stripe bez dokončení platby (?zruseno=1). */
   paymentCancelled?: boolean;
@@ -35,8 +47,10 @@ interface CartProps {
 export default function Cart({ paymentCancelled = false }: CartProps) {
   const { items, isHydrated, updateQuantity, removeItem } = useCart();
   const { data: session } = useSession();
-  const [shippingMethod, setShippingMethod] = useState<'PACKETA_ZBOX' | 'PACKETA_HOME' | 'COURIER'>('PACKETA_ZBOX');
+  const [deliveryType, setDeliveryType] = useState<DeliveryType>('PICKUP');
+  const [carrier, setCarrier] = useState<Carrier>('ZASILKOVNA');
   const [selectedPoint, setSelectedPoint] = useState<PacketaPoint | null>(null);
+  const [pplPickupPoint, setPplPickupPoint] = useState('');
   const [street, setStreet] = useState('');
   const [city, setCity] = useState('');
   const [zipCode, setZipCode] = useState('');
@@ -48,6 +62,8 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const hasPrefilledShipping = useRef(false);
+
+  const shippingMethod = toShippingMethod(deliveryType, carrier);
 
   // Přihlášený zákazník e-mail ani jméno nevyplňuje - objednávka se stejně
   // napojí na jeho účet. Host musí obojí zadat sám (prohlížeč mu to ale
@@ -93,7 +109,13 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
   const isNameValid = name.trim() !== '';
   const isPhoneValid = phone.trim() !== '';
   const isAddressValid = street.trim() !== '' && city.trim() !== '' && zipCode.trim() !== '';
-  const hasShipping = shippingMethod === 'PACKETA_ZBOX' ? Boolean(selectedPoint) : isAddressValid;
+  const isPplPickupValid = pplPickupPoint.trim() !== '';
+  const hasShipping =
+    deliveryType === 'PICKUP'
+      ? carrier === 'ZASILKOVNA'
+        ? Boolean(selectedPoint)
+        : isPplPickupValid
+      : isAddressValid;
 
   // --- Kalkulace ceny (čistě klientský výpočet pro zobrazení; finální
   //     autoritativní cena se vždy přepočítá znovu na serveru v /api/checkout) ---
@@ -105,7 +127,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
   const totalCents = subtotalCents + shippingCents;
 
   // ---------------------------------------------------------------------
-  // Krok 1: výběr výdejního místa přes Packeta Widget
+  // Výběr výdejního místa přes Packeta Widget (jen pro dopravce Zásilkovna)
   // ---------------------------------------------------------------------
   const handleOpenPacketaWidget = useCallback(() => {
     setErrorMessage(null);
@@ -144,7 +166,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
   }, [isWidgetReady]);
 
   // ---------------------------------------------------------------------
-  // Krok 2: odeslání na backend - vytvoření objednávky + platby u Stripe
+  // Odeslání na backend - vytvoření objednávky + platby u Stripe
   // ---------------------------------------------------------------------
   const handleCheckout = useCallback(async () => {
     setErrorMessage(null);
@@ -161,11 +183,15 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
       setErrorMessage('Zadejte prosím telefonní číslo - je potřeba pro doručení kurýrem/Zásilkovnou.');
       return;
     }
-    if (shippingMethod === 'PACKETA_ZBOX' && !selectedPoint) {
+    if (deliveryType === 'PICKUP' && carrier === 'ZASILKOVNA' && !selectedPoint) {
       setErrorMessage('Nejdřív prosím vyberte výdejní místo Zásilkovny.');
       return;
     }
-    if (shippingMethod !== 'PACKETA_ZBOX' && !isAddressValid) {
+    if (deliveryType === 'PICKUP' && carrier === 'PPL' && !isPplPickupValid) {
+      setErrorMessage('Zadejte prosím název/adresu PPL výdejního místa.');
+      return;
+    }
+    if (deliveryType === 'HOME' && !isAddressValid) {
       setErrorMessage('Vyplňte prosím celou doručovací adresu.');
       return;
     }
@@ -183,6 +209,17 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
       // Voláme VLASTNÍ Next.js API route, ne Stripe přímo. Tělo požadavku
       // obsahuje jen ID varianty a množství (cenu si server vždy přepočítá
       // sám podle katalogu - klient cenu neposílá).
+      const shipping =
+        shippingMethod === 'PACKETA_ZBOX'
+          ? {
+              method: 'PACKETA_ZBOX' as const,
+              packetaBranchId: selectedPoint!.id,
+              packetaBranchName: selectedPoint!.name,
+            }
+          : shippingMethod === 'PPL_ZBOX'
+            ? { method: 'PPL_ZBOX' as const, pickupPointName: pplPickupPoint }
+            : { method: shippingMethod, street, city, zipCode };
+
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -194,19 +231,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
           name,
           email,
           phone,
-          shipping:
-            shippingMethod === 'PACKETA_ZBOX'
-              ? {
-                  method: 'PACKETA_ZBOX',
-                  packetaBranchId: selectedPoint!.id,
-                  packetaBranchName: selectedPoint!.name,
-                }
-              : {
-                  method: shippingMethod,
-                  street,
-                  city,
-                  zipCode,
-                },
+          shipping,
         }),
       });
 
@@ -214,13 +239,12 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
         throw new Error(`Checkout selhal (HTTP ${response.status})`);
       }
 
-      // Server vrací redirectUrl, kterou vygeneroval Stripe
-      // (POST https://payments.comgate.cz/v2.0/create) - viz architektura, kap. 1.5.
+      // Server vrací redirectUrl, kterou vygeneroval Stripe - viz architektura, kap. 1.5.
       const data: { redirectUrl: string } = await response.json();
 
-      // Přesměrování na platební bránu Stripe. Po zaplacení Stripe
-      // zavolá webhook /api/webhooks/comgate server-to-server a teprve
-      // ten (po ověření přes /v2.0/status) označí objednávku jako zaplacenou.
+      // Přesměrování na platební bránu Stripe. Po zaplacení Stripe zavolá
+      // webhook /api/webhooks/stripe server-to-server a teprve ten (po
+      // ověření podpisu) označí objednávku jako zaplacenou.
       window.location.href = data.redirectUrl;
     } catch (error) {
       console.error(error);
@@ -229,8 +253,12 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
     }
   }, [
     items,
+    deliveryType,
+    carrier,
     shippingMethod,
     selectedPoint,
+    pplPickupPoint,
+    isPplPickupValid,
     street,
     city,
     zipCode,
@@ -243,6 +271,15 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
     isPhoneValid,
     agreedToTerms,
   ]);
+
+  const deliverySummary =
+    deliveryType === 'PICKUP'
+      ? carrier === 'ZASILKOVNA'
+        ? (selectedPoint ? `Zásilkovna: ${selectedPoint.name}` : 'nevybráno')
+        : (isPplPickupValid ? `PPL: ${pplPickupPoint}` : 'nevyplněno')
+      : isAddressValid
+        ? `${carrier === 'ZASILKOVNA' ? 'Zásilkovna' : 'PPL'} domů: ${street}, ${city}, ${zipCode}`
+        : 'nevyplněno';
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-20 md:py-28">
@@ -417,16 +454,15 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
             <p className="mt-2 text-xs text-muted">Potřebuje ho kurýr/Zásilkovna kvůli doručení.</p>
           </div>
 
-          {/* --- Výběr dopravy --- */}
+          {/* --- Výběr dopravy: 1) způsob, 2) dopravce --- */}
           <div className="mt-6 rounded-3xl border border-line p-6">
-            <div className="grid grid-cols-3 gap-2 rounded-full bg-mist p-1">
+            <p className="mb-2 text-sm font-medium text-ink">Způsob doručení</p>
+            <div className="grid grid-cols-2 gap-2 rounded-full bg-mist p-1">
               <button
                 type="button"
-                onClick={() => setShippingMethod('PACKETA_ZBOX')}
+                onClick={() => setDeliveryType('PICKUP')}
                 className={`flex items-center justify-center gap-1.5 rounded-full px-3 py-2.5 text-sm font-medium transition-colors ${
-                  shippingMethod === 'PACKETA_ZBOX'
-                    ? 'bg-white text-ink shadow-sm'
-                    : 'text-muted hover:text-ink'
+                  deliveryType === 'PICKUP' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink'
                 }`}
               >
                 <MapPin size={15} strokeWidth={2} />
@@ -434,31 +470,40 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
               </button>
               <button
                 type="button"
-                onClick={() => setShippingMethod('PACKETA_HOME')}
+                onClick={() => setDeliveryType('HOME')}
                 className={`flex items-center justify-center gap-1.5 rounded-full px-3 py-2.5 text-sm font-medium transition-colors ${
-                  shippingMethod === 'PACKETA_HOME'
-                    ? 'bg-white text-ink shadow-sm'
-                    : 'text-muted hover:text-ink'
+                  deliveryType === 'HOME' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink'
                 }`}
               >
                 <Home size={15} strokeWidth={2} />
-                Zásilkovna domů
-              </button>
-              <button
-                type="button"
-                onClick={() => setShippingMethod('COURIER')}
-                className={`flex items-center justify-center gap-1.5 rounded-full px-3 py-2.5 text-sm font-medium transition-colors ${
-                  shippingMethod === 'COURIER'
-                    ? 'bg-white text-ink shadow-sm'
-                    : 'text-muted hover:text-ink'
-                }`}
-              >
-                <Home size={15} strokeWidth={2} />
-                PPL domů
+                Doručení domů
               </button>
             </div>
 
-            {shippingMethod === 'PACKETA_ZBOX' ? (
+            <p className="mb-2 mt-4 text-sm font-medium text-ink">Dopravce</p>
+            <div className="grid grid-cols-2 gap-2 rounded-full bg-mist p-1">
+              <button
+                type="button"
+                onClick={() => setCarrier('ZASILKOVNA')}
+                className={`rounded-full px-3 py-2.5 text-sm font-medium transition-colors ${
+                  carrier === 'ZASILKOVNA' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink'
+                }`}
+              >
+                Zásilkovna
+              </button>
+              <button
+                type="button"
+                onClick={() => setCarrier('PPL')}
+                className={`rounded-full px-3 py-2.5 text-sm font-medium transition-colors ${
+                  carrier === 'PPL' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink'
+                }`}
+              >
+                PPL
+              </button>
+            </div>
+
+            {/* --- Obsah podle zvolené kombinace --- */}
+            {deliveryType === 'PICKUP' && carrier === 'ZASILKOVNA' && (
               <div className="mt-5">
                 <button
                   type="button"
@@ -482,13 +527,33 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
                   </p>
                 )}
               </div>
-            ) : (
+            )}
+
+            {deliveryType === 'PICKUP' && carrier === 'PPL' && (
+              <div className="mt-5">
+                <label htmlFor="ppl-pickup-point" className="text-sm font-medium text-ink">
+                  Název/adresa PPL výdejního místa
+                </label>
+                <input
+                  id="ppl-pickup-point"
+                  type="text"
+                  value={pplPickupPoint}
+                  onChange={(e) => setPplPickupPoint(e.target.value)}
+                  placeholder="např. PPL ParcelShop, Hlavní 1, Praha"
+                  className="mt-1.5 w-full rounded-2xl border border-line px-4 py-2.5 text-ink outline-none focus:border-accent"
+                />
+                <p className="mt-2 text-xs text-muted">
+                  PPL zatím nemá u nás mapu poboček jako Zásilkovna - napište
+                  prosím název nebo adresu pobočky, kterou chcete použít.
+                </p>
+              </div>
+            )}
+
+            {deliveryType === 'HOME' && (
               <div className="mt-5">
                 <p className="mb-3 text-sm text-muted">
-                  Doručení přes{' '}
-                  <strong className="text-ink">
-                    {shippingMethod === 'PACKETA_HOME' ? 'Zásilkovnu' : 'PPL'}
-                  </strong>{' '}
+                  Doručení domů přes{' '}
+                  <strong className="text-ink">{carrier === 'ZASILKOVNA' ? 'Zásilkovnu' : 'PPL'}</strong>{' '}
                   na adresu:
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -542,13 +607,7 @@ export default function Cart({ paymentCancelled = false }: CartProps) {
               </div>
               <div className="flex justify-between gap-4">
                 <dt className="text-muted">Doručení</dt>
-                <dd className="text-right text-ink">
-                  {shippingMethod === 'PACKETA_ZBOX'
-                    ? (selectedPoint?.name ?? 'nevybráno')
-                    : !isAddressValid
-                      ? 'nevyplněno'
-                      : `${shippingMethod === 'PACKETA_HOME' ? 'Zásilkovna' : 'PPL'}: ${street}, ${city}, ${zipCode}`}
-                </dd>
+                <dd className="text-right text-ink">{deliverySummary}</dd>
               </div>
               <div className="flex justify-between gap-4 border-t border-line pt-1.5 font-medium">
                 <dt className="text-ink">Celkem k úhradě</dt>

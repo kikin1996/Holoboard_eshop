@@ -25,6 +25,7 @@ interface CheckoutRequestBody {
   phone?: string;
   shipping:
     | { method: 'PACKETA_ZBOX'; packetaBranchId: string; packetaBranchName: string }
+    | { method: 'PPL_ZBOX'; pickupPointName: string }
     | { method: 'PACKETA_HOME' | 'COURIER'; street: string; city: string; zipCode: string };
 }
 
@@ -35,9 +36,11 @@ export async function POST(request: NextRequest) {
   const hasValidShipping =
     shipping?.method === 'PACKETA_ZBOX'
       ? Boolean(shipping.packetaBranchId)
-      : shipping?.method === 'PACKETA_HOME' || shipping?.method === 'COURIER'
-        ? Boolean(shipping.street?.trim() && shipping.city?.trim() && shipping.zipCode?.trim())
-        : false;
+      : shipping?.method === 'PPL_ZBOX'
+        ? Boolean(shipping.pickupPointName?.trim())
+        : shipping?.method === 'PACKETA_HOME' || shipping?.method === 'COURIER'
+          ? Boolean(shipping.street?.trim() && shipping.city?.trim() && shipping.zipCode?.trim())
+          : false;
 
   if (!body.items?.length || !hasValidShipping) {
     return NextResponse.json(
@@ -104,10 +107,22 @@ export async function POST(request: NextRequest) {
   const orderNumber = `HB-${Date.now()}`;
   const totalPriceCents = itemsTotalCents + SHIPPING_CENTS;
 
+  // Podle zvoleného způsobu dopravy se do objednávky (a případně profilu)
+  // ukládají jiná pole - Packeta výdejní místo má ID + název z widgetu, PPL
+  // výdejní místo zatím jen ručně zadaný název (žádné veřejné PPL API/widget),
+  // doručení domů (oběma dopravci) sdílí stejnou adresu.
+  const orderShippingData =
+    shipping.method === 'PACKETA_ZBOX'
+      ? { packetaBranchId: shipping.packetaBranchId, packetaBranchName: shipping.packetaBranchName }
+      : shipping.method === 'PPL_ZBOX'
+        ? { packetaBranchName: shipping.pickupPointName }
+        : { shippingStreet: shipping.street, shippingCity: shipping.city, shippingZip: shipping.zipCode };
+
   // Přihlášenému zákazníkovi rovnou uložíme použité doručovací údaje (a
   // telefon) na profil, ať se mu příště v checkoutu samy předvyplní (viz
   // Cart.tsx a ProfileForm.tsx) - jen tu jednu věc, kterou zrovna použil, se
-  // druhou (např. dřív uložené výdejní místo) nepřepisuje.
+  // druhou (např. dřív uložené výdejní místo) nepřepisuje. PPL výdejní místo
+  // (volný text) se na profil zatím neukládá.
   if (session?.user) {
     await prisma.user.update({
       where: { id: session.user.id },
@@ -115,7 +130,9 @@ export async function POST(request: NextRequest) {
         phone: customerPhone,
         ...(shipping.method === 'PACKETA_ZBOX'
           ? { savedPacketaBranchId: shipping.packetaBranchId, savedPacketaBranchName: shipping.packetaBranchName }
-          : { street: shipping.street, city: shipping.city, zipCode: shipping.zipCode }),
+          : shipping.method === 'PACKETA_HOME' || shipping.method === 'COURIER'
+            ? { street: shipping.street, city: shipping.city, zipCode: shipping.zipCode }
+            : {}),
       },
     });
   }
@@ -131,9 +148,7 @@ export async function POST(request: NextRequest) {
       userId: session?.user?.id ?? null,
       totalPriceCents,
       shippingMethod: shipping.method,
-      ...(shipping.method === 'PACKETA_ZBOX'
-        ? { packetaBranchId: shipping.packetaBranchId, packetaBranchName: shipping.packetaBranchName }
-        : { shippingStreet: shipping.street, shippingCity: shipping.city, shippingZip: shipping.zipCode }),
+      ...orderShippingData,
       items: { create: orderItemsData },
     },
   });
@@ -181,9 +196,11 @@ export async function POST(request: NextRequest) {
               name:
                 shipping.method === 'PACKETA_ZBOX'
                   ? 'Doprava (výdejní místo Zásilkovna)'
-                  : shipping.method === 'PACKETA_HOME'
-                    ? 'Doprava (Zásilkovna domů)'
-                    : 'Doprava (PPL domů)',
+                  : shipping.method === 'PPL_ZBOX'
+                    ? 'Doprava (výdejní místo PPL)'
+                    : shipping.method === 'PACKETA_HOME'
+                      ? 'Doprava (Zásilkovna domů)'
+                      : 'Doprava (PPL domů)',
             },
             unit_amount: SHIPPING_CENTS,
           },

@@ -33,7 +33,7 @@ export default function WhyChoose() {
   return (
     <section id="produkt" className="relative overflow-hidden">
       <BackgroundBlobs variant="reverse" />
-      <div className="mx-auto max-w-6xl px-6 py-28 md:py-36">
+      <div className="mx-auto max-w-6xl px-6 pb-28 pt-10 md:pb-36 md:pt-14">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}

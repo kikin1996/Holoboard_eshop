@@ -11,7 +11,7 @@ const EASE = [0.16, 1, 0.3, 1] as const;
 
 export default function Hero() {
   return (
-    <section className="relative overflow-hidden px-6 pb-20 pt-20 md:pb-32 md:pt-28">
+    <section className="relative overflow-hidden px-6 pb-8 pt-20 md:pb-12 md:pt-28">
       <BackgroundBlobs />
       <div className="mx-auto grid max-w-6xl items-center gap-12 md:grid-cols-2 md:gap-8">
         <motion.div

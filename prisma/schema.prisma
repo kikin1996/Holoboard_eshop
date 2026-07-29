@@ -218,9 +218,10 @@ enum OrderStatus {
 }
 
 enum ShippingMethod {
-  PACKETA_ZBOX       // výdejní box / pobočka
+  PACKETA_ZBOX       // výdejní box / pobočka Zásilkovny (Packeta Widget)
   PACKETA_HOME       // Packeta Home Delivery
-  COURIER
+  PPL_ZBOX           // výdejní místo PPL (zatím ručně zadaný název/adresa - žádný veřejný widget)
+  COURIER            // PPL domů
 }
 
 enum PaymentStatus {
