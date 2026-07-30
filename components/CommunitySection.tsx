@@ -33,7 +33,7 @@ export default function CommunitySection() {
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-100px' }}
+          viewport={{ once: true, margin: '0px' }}
           transition={{ duration: 0.7, ease: EASE }}
           className="grid items-center gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] md:gap-16"
         >
@@ -58,7 +58,7 @@ export default function CommunitySection() {
                 key={src}
                 initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-100px' }}
+                viewport={{ once: true, margin: '0px' }}
                 transition={{ duration: 0.5, ease: EASE, delay: index * 0.04 }}
                 className="relative aspect-square overflow-hidden rounded-xl"
               >

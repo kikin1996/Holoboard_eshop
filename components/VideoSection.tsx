@@ -36,7 +36,7 @@ export default function VideoSection() {
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-100px' }}
+          viewport={{ once: true, margin: '0px' }}
           transition={{ duration: 0.7, ease: EASE }}
           className="mx-auto max-w-2xl text-center"
         >
@@ -54,7 +54,7 @@ export default function VideoSection() {
               key={id}
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-100px' }}
+              viewport={{ once: true, margin: '0px' }}
               transition={{ duration: 0.7, ease: EASE, delay: index * 0.1 }}
               className="grid items-center gap-8 md:grid-cols-2 md:gap-12"
             >

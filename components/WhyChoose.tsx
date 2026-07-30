@@ -37,7 +37,7 @@ export default function WhyChoose() {
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-100px' }}
+          viewport={{ once: true, margin: '0px' }}
           transition={{ duration: 0.7, ease: EASE }}
           className="mx-auto max-w-2xl text-center"
         >
@@ -55,7 +55,7 @@ export default function WhyChoose() {
               key={title}
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-100px' }}
+              viewport={{ once: true, margin: '0px' }}
               transition={{ duration: 0.7, ease: EASE, delay: index * 0.1 }}
               className="rounded-3xl bg-mist p-8"
             >

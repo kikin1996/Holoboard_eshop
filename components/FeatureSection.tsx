@@ -37,7 +37,7 @@ export default function FeatureSection({
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-100px' }}
+            viewport={{ once: true, margin: '0px' }}
             transition={{ duration: 0.7, ease: EASE }}
           >
             <p className="mb-3 text-sm font-medium uppercase tracking-widest text-accent">
@@ -52,7 +52,7 @@ export default function FeatureSection({
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-100px' }}
+            viewport={{ once: true, margin: '0px' }}
             transition={{ duration: 0.7, ease: EASE, delay: 0.1 }}
             className="rounded-3xl bg-paper p-10 shadow-sm"
           >
