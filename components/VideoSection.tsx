@@ -29,7 +29,7 @@ const videos = [
 // kampaň na Hithit.cz), embedované YouTube video pro každý prototyp.
 export default function VideoSection() {
   return (
-    <section id="video" className="bg-mist">
+    <section id="video" className="bg-sky">
       <div className="mx-auto max-w-6xl px-6 py-28 md:py-36">
         <motion.div
           initial={{ opacity: 0, y: 24 }}

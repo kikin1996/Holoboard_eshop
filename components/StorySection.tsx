@@ -85,11 +85,6 @@ export default function StorySection() {
           </motion.div>
         </div>
       </div>
-
-      {/* Zrcadlová vlnka - výstup zpátky do světlého pozadí stránky. Mimo
-          modrý blok, ať "prosvítající" vrstvy vidí skutečné bílé pozadí
-          stránky za sebou, ne modrou z předchozího divu. */}
-      <WaveTransition flip />
     </section>
   );
 }

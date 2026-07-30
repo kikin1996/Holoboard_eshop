@@ -10,13 +10,13 @@ type Tint = 'mist' | 'orange';
 
 const TINT_BG: Record<Tint, string> = {
   mist: 'rounded-b-[2.5rem] bg-mist md:rounded-b-[4rem]',
-  orange: 'bg-cream',
+  orange: 'bg-peach',
 };
 
 // Barvy vlnky pro výstup z oranžového tónu zpátky do bílého pozadí stránky
 // (viz WaveTransition) - nejsytější vrstva odpovídá vlastnímu pozadí sekce
-// (`cream`), ať navazují bez viditelného švu.
-const ORANGE_WAVE_COLORS: [string, string, string] = ['#FEFAF7', '#FBDCC0', '#FCEEE1'];
+// (`peach`), ať navazují bez viditelného švu.
+const ORANGE_WAVE_COLORS: [string, string, string] = ['#FFF6EC', '#FFD9A8', '#FFA95E'];
 
 interface FeatureSectionProps {
   id?: string;
