@@ -28,7 +28,8 @@ export default function HomePage() {
         title="Nafukovací plavidlo pro celou rodinu"
         description="HoloBoard představuje inovativní hybrid mezi paddleboardem a kajakem, navržený tak, aby spojil pohodlí, stabilitu a zábavu na vodě do jednoho univerzálního plavidla."
         visual={<SpecGrid />}
-        tinted
+        tint="orange"
+        waveBottom
       />
 
       <FeatureSection

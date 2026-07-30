@@ -11,6 +11,7 @@ const config: Config = {
         ink: '#0A0A0A',
         paper: '#FFFFFF',
         mist: '#EDF5FA',
+        cream: '#FCEEE1',
         line: '#D9E7F0',
         accent: '#2D9CDA',
         'accent-dark': '#1E7FB8',

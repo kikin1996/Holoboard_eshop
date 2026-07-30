@@ -11,55 +11,9 @@
 
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import WaveTransition from '@/components/WaveTransition';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
-
-// Jedna "dlaždice" vlny (0-1440) zopakovaná dvakrát vedle sebe (0-2880) -
-// T příkazy (hladké kvadratické křivky) se zrcadlí od předchozího řídicího
-// bodu, takže vlna navazuje sama na sebe a smyčka je bezešvá.
-function wavePath(baseline: number, amplitude: number) {
-  const crest = baseline - amplitude;
-  const trough = baseline + amplitude;
-  return `M0,${baseline} Q180,${crest} 360,${baseline} T720,${baseline} T1080,${baseline} T1440,${baseline} T1800,${baseline} T2160,${baseline} T2520,${baseline} L2880,120 L0,120 Z`;
-}
-
-interface WaveLayerProps {
-  fill: string;
-  baseline: number;
-  amplitude: number;
-  duration: number;
-  reverse?: boolean;
-  opacity?: number;
-}
-
-function WaveLayer({ fill, baseline, amplitude, duration, reverse, opacity = 1 }: WaveLayerProps) {
-  return (
-    <motion.svg
-      viewBox="0 0 2880 120"
-      preserveAspectRatio="none"
-      className="absolute inset-y-0 left-0 h-full w-[200%]"
-      style={{ opacity }}
-      animate={{ x: reverse ? ['-50%', '0%'] : ['0%', '-50%'] }}
-      transition={{ duration, repeat: Infinity, ease: 'linear' }}
-    >
-      <path d={wavePath(baseline, amplitude)} fill={fill} />
-    </motion.svg>
-  );
-}
-
-// Vrstvená vlnka pro přechod mezi světlým pozadím stránky a plnou barvou
-// sekce. `flip` (rotace o 180°) ze stejné sady vrstev udělá zrcadlový
-// "výstup" zpátky do světlého pozadí - vodorovné otočení vlně nevadí,
-// protože je to periodická dlaždice.
-function WaveTransition({ flip }: { flip?: boolean }) {
-  return (
-    <div className={`relative h-24 overflow-hidden md:h-32 ${flip ? 'rotate-180' : ''}`}>
-      <WaveLayer fill="#EDF5FA" baseline={40} amplitude={22} duration={32} />
-      <WaveLayer fill="#8ED0EF" baseline={62} amplitude={26} duration={24} reverse />
-      <WaveLayer fill="#2D9CDA" baseline={86} amplitude={18} duration={20} />
-    </div>
-  );
-}
 
 export default function StorySection() {
   return (

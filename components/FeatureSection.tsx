@@ -2,8 +2,21 @@
 
 import { motion } from 'framer-motion';
 import { ReactNode } from 'react';
+import WaveTransition from '@/components/WaveTransition';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
+
+type Tint = 'mist' | 'orange';
+
+const TINT_BG: Record<Tint, string> = {
+  mist: 'rounded-b-[2.5rem] bg-mist md:rounded-b-[4rem]',
+  orange: 'bg-cream',
+};
+
+// Barvy vlnky pro výstup z oranžového tónu zpátky do bílého pozadí stránky
+// (viz WaveTransition) - nejsytější vrstva odpovídá vlastnímu pozadí sekce
+// (`cream`), ať navazují bez viditelného švu.
+const ORANGE_WAVE_COLORS: [string, string, string] = ['#FEFAF7', '#FBDCC0', '#FCEEE1'];
 
 interface FeatureSectionProps {
   id?: string;
@@ -12,11 +25,14 @@ interface FeatureSectionProps {
   description: string;
   visual: ReactNode;
   reverse?: boolean;
-  tinted?: boolean;
+  // Tónované pozadí sekce - `mist` má zaoblené spodní rohy, `orange` se
+  // místo toho odděluje animovanou vlnkou (`waveBottom`).
+  tint?: Tint;
+  waveBottom?: boolean;
 }
 
 // Opakovatelný stavební blok pro marketingové sekce - text + vizuál vedle
-// sebe, pořadí se dá otočit (`reverse`), volitelně tónované pozadí (`tinted`).
+// sebe, pořadí se dá otočit (`reverse`), volitelně tónované pozadí (`tint`).
 export default function FeatureSection({
   id,
   eyebrow,
@@ -24,10 +40,11 @@ export default function FeatureSection({
   description,
   visual,
   reverse = false,
-  tinted = false,
+  tint,
+  waveBottom = false,
 }: FeatureSectionProps) {
   return (
-    <section id={id} className={tinted ? 'rounded-b-[2.5rem] bg-mist md:rounded-b-[4rem]' : undefined}>
+    <section id={id} className={tint ? TINT_BG[tint] : undefined}>
       <div className="mx-auto max-w-6xl px-6 py-28 md:py-36">
         <div
           className={`grid items-center gap-12 md:grid-cols-2 md:gap-16 ${
@@ -60,6 +77,8 @@ export default function FeatureSection({
           </motion.div>
         </div>
       </div>
+
+      {tint === 'orange' && waveBottom && <WaveTransition flip colors={ORANGE_WAVE_COLORS} />}
     </section>
   );
 }
