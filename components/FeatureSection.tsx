@@ -16,7 +16,7 @@ const TINT_BG: Record<Tint, string> = {
 // Barvy vlnky pro výstup z oranžového tónu zpátky do bílého pozadí stránky
 // (viz WaveTransition) - nejsytější vrstva odpovídá vlastnímu pozadí sekce
 // (`peach`), ať navazují bez viditelného švu.
-const ORANGE_WAVE_COLORS: [string, string, string] = ['#FFF6EC', '#FFD9A8', '#FFA95E'];
+const ORANGE_WAVE_COLORS: [string, string, string] = ['#FFFFFF', '#FFD9A8', '#FFA95E'];
 
 interface FeatureSectionProps {
   id?: string;

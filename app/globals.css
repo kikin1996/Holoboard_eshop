@@ -10,3 +10,15 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
+
+/* Nekonečná horizontální smyčka pro WaveTransition - dlaždice je 2x širší
+   než kontejner, takže posun o přesně polovinu šířky (-50%) navazuje beze
+   švu na začátek. */
+@keyframes wave-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}

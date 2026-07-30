@@ -33,9 +33,9 @@ export default function Navbar() {
           <Image
             src="/logo-holoboard.png"
             alt="HoloBoard"
-            width={52}
-            height={46}
-            className="h-[46px] w-auto"
+            width={62}
+            height={55}
+            className="h-[55px] w-auto"
             priority
           />
         </Link>
