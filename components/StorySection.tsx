@@ -4,19 +4,22 @@
 // components/StorySection.tsx
 // -----------------------------------------------------------------------------
 // Sekce "Holoboard story" pro hlavní stránku - fotomontáž zakladatele +
-// text příběhu na plné modré ploše. Přechody do/ze sousedních sekcí jsou
-// záměrně čistá barevná hrana bez vlnky (viz WaveTransition, používaná jen
-// u Specifikace).
+// text příběhu, oddělené od zbytku stránky vrstvenou vlnkou (viz
+// WaveTransition), která se pomalu a nenápadně hýbe.
 // =============================================================================
 
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import WaveTransition from '@/components/WaveTransition';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 export default function StorySection() {
   return (
     <section className="relative">
+      {/* Vrstvené vlnky - přechod ze světlého pozadí stránky do modré sekce. */}
+      <WaveTransition />
+
       <div className="bg-accent">
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-24 pt-4 md:grid-cols-2 md:gap-16 md:pb-32 md:pt-8">
           <motion.div
