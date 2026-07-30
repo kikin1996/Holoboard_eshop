@@ -11,10 +11,14 @@
 // Jedna "dlaždice" vlny (0-1440) zopakovaná dvakrát vedle sebe (0-2880) -
 // T příkazy (hladké kvadratické křivky) se zrcadlí od předchozího řídicího
 // bodu, takže vlna navazuje sama na sebe a smyčka je bezešvá.
+//
+// Pozor: řídicí bod kvadratické křivky NENÍ bod, kterým křivka prochází -
+// skutečný vrchol vykreslené vlny leží v půlce mezi baseline a řídicím
+// bodem (B(0.5) = (baseline + control) / 2). Aby `amplitude` odpovídala
+// skutečné viditelné výchylce, musí se řídicí bod posunout o dvojnásobek.
 function wavePath(baseline: number, amplitude: number) {
-  const crest = baseline - amplitude;
-  const trough = baseline + amplitude;
-  return `M0,${baseline} Q180,${crest} 360,${baseline} T720,${baseline} T1080,${baseline} T1440,${baseline} T1800,${baseline} T2160,${baseline} T2520,${baseline} L2880,120 L0,120 Z`;
+  const control = baseline - amplitude * 2;
+  return `M0,${baseline} Q180,${control} 360,${baseline} T720,${baseline} T1080,${baseline} T1440,${baseline} T1800,${baseline} T2160,${baseline} T2520,${baseline} L2880,120 L0,120 Z`;
 }
 
 interface WaveLayerProps {
@@ -63,9 +67,9 @@ export default function WaveTransition({
       className={`relative h-24 overflow-hidden md:h-32 ${flip ? 'rotate-180' : ''}`}
       style={{ backgroundColor: colors[0] }}
     >
-      <WaveLayer fill={colors[0]} baseline={40} amplitude={22} duration={32} />
-      <WaveLayer fill={colors[1]} baseline={62} amplitude={26} duration={24} reverse />
-      <WaveLayer fill={colors[2]} baseline={86} amplitude={18} duration={20} />
+      <WaveLayer fill={colors[0]} baseline={30} amplitude={30} duration={32} />
+      <WaveLayer fill={colors[1]} baseline={55} amplitude={27} duration={24} reverse />
+      <WaveLayer fill={colors[2]} baseline={84} amplitude={20} duration={20} />
     </div>
   );
 }
