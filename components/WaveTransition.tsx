@@ -60,13 +60,12 @@ export default function WaveTransition({
   colors = ['#EDF5FA', '#8ED0EF', '#2D9CDA'],
 }: WaveTransitionProps) {
   return (
-    // backgroundColor = nejsvětlejší vrstva - vyplní i tu tenkou "mezeru" nad
-    // vrcholem vlny, kterou by jinak prosvítalo pozadí rodiče (bílá stránka,
-    // nebo u FeatureSection dokonce oranžová sekce, do níž je vlna vnořená).
-    <div
-      className={`relative h-24 overflow-hidden md:h-32 ${flip ? 'rotate-180' : ''}`}
-      style={{ backgroundColor: colors[0] }}
-    >
+    // Kontejner musí zůstat průhledný mimo vlny samotné - okolí (stránka
+    // nad/pod ním) je vždy bílé, takže mezery mezi vrcholy mají prosvítat na
+    // bílou, ne na plochou barvu. Container proto NESMÍ sedět uvnitř jiné
+    // tónované sekce (viz FeatureSection, kde je vlna sourozenec, ne potomek
+    // tónovaného divu).
+    <div className={`relative h-24 overflow-hidden md:h-32 ${flip ? 'rotate-180' : ''}`}>
       <WaveLayer fill={colors[0]} baseline={30} amplitude={30} duration={32} />
       <WaveLayer fill={colors[1]} baseline={55} amplitude={27} duration={24} reverse />
       <WaveLayer fill={colors[2]} baseline={84} amplitude={20} duration={20} />

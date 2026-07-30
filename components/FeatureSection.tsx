@@ -44,37 +44,42 @@ export default function FeatureSection({
   waveBottom = false,
 }: FeatureSectionProps) {
   return (
-    <section id={id} className={tint ? TINT_BG[tint] : undefined}>
-      <div className="mx-auto max-w-6xl px-6 py-28 md:py-36">
-        <div
-          className={`grid items-center gap-12 md:grid-cols-2 md:gap-16 ${
-            reverse ? 'md:[&>*:first-child]:order-2' : ''
-          }`}
-        >
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '0px' }}
-            transition={{ duration: 0.7, ease: EASE }}
+    <section id={id}>
+      {/* Tónované pozadí obaluje jen obsah, ne vlnku pod ním - jinak by
+          vlnčiny mezery mezi vrcholy prosvítaly na tuto barvu místo na bílou
+          stránku (viz WaveTransition). */}
+      <div className={tint ? TINT_BG[tint] : undefined}>
+        <div className="mx-auto max-w-6xl px-6 py-28 md:py-36">
+          <div
+            className={`grid items-center gap-12 md:grid-cols-2 md:gap-16 ${
+              reverse ? 'md:[&>*:first-child]:order-2' : ''
+            }`}
           >
-            <p className="mb-3 text-sm font-medium uppercase tracking-widest text-accent">
-              {eyebrow}
-            </p>
-            <h2 className="text-4xl font-semibold tracking-tight text-ink md:text-5xl">
-              {title}
-            </h2>
-            <p className="mt-5 max-w-md text-lg text-muted">{description}</p>
-          </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '0px' }}
+              transition={{ duration: 0.7, ease: EASE }}
+            >
+              <p className="mb-3 text-sm font-medium uppercase tracking-widest text-accent">
+                {eyebrow}
+              </p>
+              <h2 className="text-4xl font-semibold tracking-tight text-ink md:text-5xl">
+                {title}
+              </h2>
+              <p className="mt-5 max-w-md text-lg text-muted">{description}</p>
+            </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '0px' }}
-            transition={{ duration: 0.7, ease: EASE, delay: 0.1 }}
-            className="rounded-3xl bg-paper p-10 shadow-sm"
-          >
-            {visual}
-          </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '0px' }}
+              transition={{ duration: 0.7, ease: EASE, delay: 0.1 }}
+              className="rounded-3xl bg-paper p-10 shadow-sm"
+            >
+              {visual}
+            </motion.div>
+          </div>
         </div>
       </div>
 
